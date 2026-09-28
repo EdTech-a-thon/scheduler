@@ -4,6 +4,7 @@
 	import type { Condition } from '$lib/domain/types';
 	import { store } from '$lib/state/store.svelte';
 	import ConditionsEditor from './ConditionsEditor.svelte';
+	import PropertyIcon from './PropertyIcon.svelte';
 
 	let {
 		selected = $bindable(),
@@ -110,10 +111,11 @@
 				/>
 				<span class="name">{s.name}</span>
 				<span class="props">
-					{store.data.properties
-						.filter((p) => p.type === 'select' && typeof s.values[p.id] === 'string')
-						.map((p) => s.values[p.id])
-						.join(' · ')}
+					{#each store.data.properties.filter((p) => p.type === 'select' && typeof s.values[p.id] === 'string') as p (p.id)}
+						<span class="prop" title={p.name}>
+							<PropertyIcon name={p.icon} size={12} />{s.values[p.id]}
+						</span>
+					{/each}
 				</span>
 			</li>
 		{:else}
@@ -202,12 +204,24 @@
 		font-weight: 500;
 	}
 	.props {
+		display: flex;
+		gap: 8px;
+		min-width: 0;
 		margin-left: auto;
 		font-size: 12px;
 		color: var(--muted);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+	}
+	.prop {
+		display: inline-flex;
+		align-items: center;
+		gap: 3px;
+	}
+	.prop :global(svg) {
+		flex: none;
+		opacity: 0.8;
 	}
 	.none {
 		cursor: default;

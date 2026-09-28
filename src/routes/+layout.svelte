@@ -1,11 +1,21 @@
 <script lang="ts">
 	import '../app.css';
 	import { page } from '$app/state';
-	import { CalendarRange, FileUp, LayoutGrid, Users } from '@lucide/svelte';
+	import {
+		CalendarRange,
+		ChevronRight,
+		CircleQuestionMark,
+		FileUp,
+		LayoutGrid,
+		Settings,
+		Users
+	} from '@lucide/svelte';
+	import HelpDialog from '$lib/components/HelpDialog.svelte';
 	import ImportDialog from '$lib/components/ImportDialog.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import { handleUndoKeys } from '$lib/components/shortcuts';
-	import { parseTransferFile, TransferError, type TransferFile } from '$lib/domain/transfer';
+	import type { AppData } from '$lib/domain/types';
+	import { importer } from '$lib/state/importer.svelte';
 	import { store } from '$lib/state/store.svelte';
 
 	let { children } = $props();
@@ -16,50 +26,141 @@
 		{ href: '/planner', label: 'Planner', icon: LayoutGrid }
 	];
 
-	let picker: HTMLInputElement | undefined = $state();
-	let pending = $state<{ file: TransferFile; filename: string } | null>(null);
-	let error = $state<string | null>(null);
-	let dragDepth = $state(0);
-
-	async function open(f: File | undefined) {
-		if (!f) return;
-		try {
-			pending = { file: parseTransferFile(await f.text()), filename: f.name };
-		} catch (e) {
-			error = e instanceof TransferError ? e.message : 'This file couldn’t be read.';
+	type Crumb = { label: string; href?: string };
+	const crumbs = $derived.by((): Crumb[] => {
+		const path = page.url.pathname;
+		if (path.startsWith('/schedules/')) {
+			const id = decodeURIComponent(path.slice('/schedules/'.length));
+			const name = store.data.schedules.find((s) => s.id === id)?.name ?? 'Schedule';
+			return [{ label: 'Schedules', href: '/schedules' }, { label: name }];
 		}
+		const tab = (
+			{ '/settings/about': 'About', '/settings/privacy': 'Privacy' } as Record<string, string>
+		)[path];
+		if (tab) return [{ label: 'Settings', href: '/settings' }, { label: tab }];
+		const top = [...links, { href: '/settings', label: 'Settings' }].find((l) =>
+			path.startsWith(l.href)
+		);
+		return top ? [{ label: top.label }] : [];
+	});
+
+	const isActive = (href: string) => page.url.pathname.startsWith(href);
+
+	let dragDepth = $state(0);
+	const hasFiles = (e: DragEvent) => e.dataTransfer?.types.includes('Files') ?? false;
+
+	let helpOpen = $state(false);
+
+	/**
+	 * The nav is an icon rail that slides out over the page after the pointer
+	 * rests on it for a moment, so passing over it on the way somewhere doesn't
+	 * flash it open. It never pushes the page aside.
+	 */
+	const OPEN_DELAY = 300;
+	const CLOSE_DELAY = 150;
+	let expanded = $state(false);
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	function expandLater(next: boolean) {
+		clearTimeout(timer);
+		timer = setTimeout(() => (expanded = next), next ? OPEN_DELAY : CLOSE_DELAY);
+	}
+	function collapseNow() {
+		clearTimeout(timer);
+		expanded = false;
 	}
 
-	const hasFiles = (e: DragEvent) => e.dataTransfer?.types.includes('Files') ?? false;
+	const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
+	const summary = (d: AppData) =>
+		`${plural(d.students.length, 'Student')}, ${plural(d.schedules.length, 'Schedule')} and ${plural(d.sessions.length, 'Session')}`;
 </script>
 
 <svelte:head>
-	<title>Service Scheduler</title>
+	<title>{crumbs.at(-1) ? `${crumbs.at(-1)!.label} · ` : ''}Service Scheduler</title>
 </svelte:head>
 
-<header>
-	<span class="brand">Service Scheduler</span>
-	<nav>
-		{#each links as { href, label, icon: Icon } (href)}
-			<a {href} class:active={page.url.pathname.startsWith(href)}><Icon size={16} /> {label}</a>
-		{/each}
-	</nav>
-	<button class="import" onclick={() => picker?.click()}><FileUp size={15} /> Import</button>
-	<input
-		bind:this={picker}
-		type="file"
-		accept=".json,application/json"
-		hidden
-		onchange={(e) => {
-			open(e.currentTarget.files?.[0]);
-			e.currentTarget.value = '';
-		}}
-	/>
-</header>
+<nav
+	class="rail no-print"
+	class:expanded
+	aria-label="Sections"
+	onpointerenter={(e) => e.pointerType === 'mouse' && expandLater(true)}
+	onpointerleave={(e) => e.pointerType === 'mouse' && expandLater(false)}
+	onfocusin={() => {
+		clearTimeout(timer);
+		expanded = true;
+	}}
+	onfocusout={(e) => {
+		if (!e.currentTarget.contains(e.relatedTarget as Node | null)) collapseNow();
+	}}
+>
+	<a class="item brand" href="/caseload" onclick={collapseNow}>
+		<span class="glyph"><img src="/favicon.svg" alt="" width="28" height="28" /></span>
+		<span class="label">Service Scheduler</span>
+	</a>
+	{#each links as { href, label, icon: Icon } (href)}
+		<a
+			{href}
+			class="item"
+			class:active={isActive(href)}
+			aria-current={isActive(href) ? 'page' : undefined}
+			title={expanded ? undefined : label}
+			onclick={collapseNow}
+		>
+			<span class="glyph"><Icon size={18} /></span>
+			<span class="label">{label}</span>
+		</a>
+	{/each}
+	<div class="foot">
+		<a
+			href="/settings"
+			class="item"
+			class:active={isActive('/settings')}
+			aria-current={isActive('/settings') ? 'page' : undefined}
+			title={expanded ? undefined : 'Settings'}
+			onclick={collapseNow}
+		>
+			<span class="glyph"><Settings size={18} /></span>
+			<span class="label">Settings</span>
+		</a>
+		<button
+			class="item"
+			aria-haspopup="dialog"
+			title={expanded ? undefined : 'Help'}
+			onclick={() => {
+				collapseNow();
+				helpOpen = true;
+			}}
+		>
+			<span class="glyph"><CircleQuestionMark size={20} /></span>
+			<span class="label">Help</span>
+		</button>
+	</div>
+</nav>
 
-<main>{@render children()}</main>
+<div class="frame">
+	<header class="topbar no-print">
+		<nav aria-label="Breadcrumb">
+			<ol class="crumbs">
+				{#each crumbs as crumb, i (i)}
+					<li>
+						{#if i > 0}<ChevronRight size={14} aria-hidden="true" />{/if}
+						{#if crumb.href && i < crumbs.length - 1}
+							<a href={crumb.href}>{crumb.label}</a>
+						{:else}
+							<span aria-current="page">{crumb.label}</span>
+						{/if}
+					</li>
+				{/each}
+			</ol>
+		</nav>
+		<a class="credit" href="https://teacher.dev" target="_blank" rel="noopener noreferrer">
+			<img src="/edtechathon-logo.svg" alt="" width="20" height="20" />
+			Built by teacher.dev
+		</a>
+	</header>
+	<main>{@render children()}</main>
+</div>
 
-<!-- Drop an exported file anywhere to import it. -->
+<!-- Drop an exported file or a backup anywhere to import it. -->
 <svelte:window
 	onkeydown={(e) =>
 		handleUndoKeys(
@@ -74,7 +175,7 @@
 		if (!hasFiles(e)) return;
 		e.preventDefault();
 		dragDepth = 0;
-		open(e.dataTransfer?.files[0]);
+		importer.open(e.dataTransfer?.files[0]);
 	}}
 />
 
@@ -84,63 +185,187 @@
 	</div>
 {/if}
 
-{#if pending}
-	<ImportDialog file={pending.file} filename={pending.filename} onclose={() => (pending = null)} />
+{#if importer.pending}
+	<ImportDialog
+		file={importer.pending.file}
+		filename={importer.pending.filename}
+		onclose={() => (importer.pending = null)}
+	/>
 {/if}
 
-{#if error}
+{#if importer.restoring}
+	{@const backup = importer.restoring}
+	<Modal
+		title="Restore this backup?"
+		confirmLabel="Replace everything"
+		danger
+		oncancel={() => (importer.restoring = null)}
+		onconfirm={() => {
+			store.restoreBackup(backup.data);
+			importer.restoring = null;
+		}}
+	>
+		<p>
+			Everything here now ({summary(store.data)}) will be replaced by
+			<strong>{backup.filename}</strong> ({summary(backup.data)}).
+		</p>
+		<p class="muted">You can undo this right after.</p>
+	</Modal>
+{/if}
+
+{#if helpOpen}
+	<HelpDialog onclose={() => (helpOpen = false)} />
+{/if}
+
+{#if importer.error}
 	<Modal
 		title="Couldn’t import that file"
 		confirmLabel="OK"
-		onconfirm={() => (error = null)}
-		oncancel={() => (error = null)}
+		onconfirm={() => (importer.error = null)}
+		oncancel={() => (importer.error = null)}
 	>
-		<p>{error}</p>
+		<p>{importer.error}</p>
 	</Modal>
 {/if}
 
 <style>
-	header {
+	.rail {
+		--rail: 56px;
+		position: fixed;
+		inset: 0 auto 0 0;
+		z-index: 40;
+		width: var(--rail);
 		display: flex;
-		align-items: center;
-		gap: 24px;
-		padding: 0 28px;
-		height: 52px;
+		flex-direction: column;
+		gap: 2px;
+		padding: 10px 8px;
+		box-sizing: border-box;
 		background: white;
-		border-bottom: 1px solid var(--line);
-		position: sticky;
-		top: 0;
-		z-index: 30;
+		border-right: 1px solid var(--line);
+		overflow: hidden;
+		transition:
+			width 160ms ease,
+			box-shadow 160ms ease;
 	}
-	.brand {
-		font-weight: 700;
+	.rail.expanded {
+		width: 220px;
+		box-shadow: 8px 0 28px rgb(0 0 0 / 0.12);
 	}
-	nav {
-		display: flex;
-		gap: 4px;
-	}
-	nav a {
+	.item {
 		display: flex;
 		align-items: center;
-		gap: 6px;
-		padding: 6px 12px;
-		border-radius: 7px;
+		gap: 10px;
+		height: 38px;
+		padding: 0;
+		border: none;
+		border-radius: 8px;
+		background: none;
 		color: var(--muted);
 		text-decoration: none;
 		font-weight: 500;
+		white-space: nowrap;
+		text-align: left;
 	}
-	nav a:hover {
+	.item:hover:not(:disabled) {
 		background: var(--surface-2);
+		color: var(--text);
 	}
-	nav a.active {
+	.item.active {
 		color: var(--accent-strong);
 		background: var(--accent-soft);
 	}
-	.import {
+	.glyph {
+		flex: none;
+		width: 40px;
+		display: grid;
+		place-items: center;
+	}
+	.label {
+		opacity: 0;
+		transition: opacity 120ms ease;
+	}
+	.expanded .label {
+		opacity: 1;
+	}
+	.brand {
+		color: var(--text);
+		font-weight: 700;
+		margin-bottom: 10px;
+	}
+	.brand:hover {
+		background: none;
+	}
+	.brand .glyph img {
+		display: block;
+	}
+	.foot {
+		margin-top: auto;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+	.credit {
 		margin-left: auto;
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		color: var(--muted);
+		font-size: 13px;
+		text-decoration: none;
+		white-space: nowrap;
+	}
+	.credit:hover {
+		color: var(--accent-strong);
+		text-decoration: underline;
+		text-underline-offset: 4px;
+	}
+	.topbar {
+		position: sticky;
+		top: 0;
+		z-index: 30;
+		height: var(--topbar-h);
+		box-sizing: border-box;
+		display: flex;
+		align-items: center;
+		padding: 0 28px;
+		background: white;
+		border-bottom: 1px solid var(--line);
+	}
+	.crumbs {
 		display: flex;
 		align-items: center;
 		gap: 6px;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		font-size: 14px;
+	}
+	.crumbs li {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		color: var(--muted);
+	}
+	.crumbs a {
+		color: var(--muted);
+		text-decoration: none;
+	}
+	.crumbs a:hover {
+		color: var(--text);
+		text-decoration: underline;
+		text-underline-offset: 4px;
+	}
+	.crumbs [aria-current='page'] {
+		color: var(--text);
+		font-weight: 600;
+	}
+	.frame {
+		margin-left: 56px;
+	}
+	@media print {
+		.frame {
+			margin-left: 0;
+		}
 	}
 	.dropzone {
 		position: fixed;

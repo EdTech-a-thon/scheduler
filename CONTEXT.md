@@ -89,3 +89,13 @@ _Avoid_: Error, clash
 **Planner**:
 The screen where the Provider selects Students, sees their Schedules layered together, and books Sessions into Common Free Time.
 _Avoid_: Layout page, scheduling page
+
+### Sharing
+
+**Export**:
+A file of some Schedules, a Caseload, or both, sent to a teammate so they needn't re-enter it. Importing one adds to what's there; it never carries Sessions.
+_Avoid_: Share, template
+
+**Backup**:
+A file of everything the Provider has, Sessions included, kept for safekeeping or to move browsers. Importing one replaces everything.
+_Avoid_: Account export, snapshot

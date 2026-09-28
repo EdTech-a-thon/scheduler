@@ -710,8 +710,11 @@
 						{#each isSelected && selectedIds.length > 1 ? SIDE_EDGES : EDGES as h (h)}
 							<div class="handle h-{h}" data-handle={h} style:cursor={HANDLE_CURSOR[h]}></div>
 						{/each}
-						{#if isSelected && selectedIds.length === 1}
-							{#each ['tl', 'tr', 'bl', 'br'] as c (c)}<span class="knob k-{c}"></span>{/each}
+						{#if isSelected}
+							<!-- Several selected resize only sideways, so only the side knobs show. -->
+							{#each selectedIds.length === 1 ? ['tl', 'tr', 'bl', 'br'] : ['l', 'r'] as c (c)}<span
+									class="knob k-{c}"
+								></span>{/each}
 						{/if}
 					{/if}
 				</div>
@@ -1038,6 +1041,19 @@
 	.k-br {
 		right: -8px;
 		bottom: -8px;
+	}
+	.k-l,
+	.k-r {
+		width: 6px;
+		height: 14px;
+		top: calc(50% - 7px);
+		border-radius: 3px;
+	}
+	.k-l {
+		left: -10px;
+	}
+	.k-r {
+		right: -7px;
 	}
 	.marquee {
 		position: fixed;

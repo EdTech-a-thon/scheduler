@@ -107,7 +107,7 @@
 </script>
 
 <div
-	class="floating"
+	class="floating no-print"
 	bind:this={panel}
 	data-keeps-selection
 	style:left="{pos.left}px"

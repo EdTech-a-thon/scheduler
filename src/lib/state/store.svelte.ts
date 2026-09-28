@@ -152,6 +152,16 @@ class Store {
 		this.change((d) => applyImport(d, file, choice, newId));
 	}
 
+	/** Replaces everything with a backup. It's one step, so Undo brings the old data back. */
+	restoreBackup(backup: AppData) {
+		this.change((d) => {
+			d.properties = backup.properties;
+			d.students = backup.students;
+			d.schedules = backup.schedules;
+			d.sessions = backup.sessions;
+		});
+	}
+
 	// Properties
 
 	addProperty(type: PropertyType): Property {

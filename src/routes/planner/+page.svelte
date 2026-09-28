@@ -4,7 +4,9 @@
 	import { applySpanAction, eraseFromSpan, replaceSpan } from '$lib/domain/spans';
 	import { DAYS, SNAP } from '$lib/domain/time';
 	import type { Day, Minute } from '$lib/domain/types';
+	import { Printer } from '@lucide/svelte';
 	import GridToolbar from '$lib/components/GridToolbar.svelte';
+	import PrintSessions from '$lib/components/PrintSessions.svelte';
 	import FloatingPanel from '$lib/components/FloatingPanel.svelte';
 	import SessionPanel from '$lib/components/SessionPanel.svelte';
 	import StudentPicker from '$lib/components/StudentPicker.svelte';
@@ -159,7 +161,7 @@
 		})}
 />
 
-<div class="planner">
+<div class="planner no-print">
 	<aside class="left">
 		<StudentPicker
 			bind:selected={plannerUi.selected}
@@ -169,18 +171,28 @@
 	</aside>
 
 	<div class="center">
-		<GridToolbar
-			bind:tool={plannerUi.tool}
-			noun="Session"
-			selection={{
-				count: plannerUi.sessionIds.length,
-				mergeReason: grid?.getMergeReason() ?? null,
-				onmerge: () => grid?.mergeSelection(),
-				onmergehover: (on) => grid?.previewMerge(on),
-				ondelete: () => ondelete(plannerUi.sessionIds),
-				onclear: () => (plannerUi.sessionIds = [])
-			}}
-		/>
+		<div class="center-head">
+			<GridToolbar
+				bind:tool={plannerUi.tool}
+				noun="Session"
+				selection={{
+					count: plannerUi.sessionIds.length,
+					mergeReason: grid?.getMergeReason() ?? null,
+					onmerge: () => grid?.mergeSelection(),
+					onmergehover: (on) => grid?.previewMerge(on),
+					ondelete: () => ondelete(plannerUi.sessionIds),
+					onclear: () => (plannerUi.sessionIds = [])
+				}}
+			/>
+			<button
+				class="print"
+				disabled={visibleSessions.length === 0}
+				title="Print the Sessions shown, or save them as a PDF"
+				onclick={() => window.print()}
+			>
+				<Printer size={15} /> Print
+			</button>
+		</div>
 		<div class="scroll">
 			<TimeGrid
 				bind:this={grid}
@@ -220,6 +232,8 @@
 	</div>
 </div>
 
+<PrintSessions sessions={visibleSessions} {nameOf} forNames={chosen.map((s) => s.name)} />
+
 {#if openSession}
 	<FloatingPanel anchorId={openSession.id} onclose={() => (plannerUi.sessionIds = [])}>
 		<SessionPanel session={openSession} onclose={() => (plannerUi.sessionIds = [])} />
@@ -230,21 +244,36 @@
 	.planner {
 		display: grid;
 		grid-template-columns: 280px minmax(0, 1fr);
-		min-height: calc(100vh - 53px);
+		min-height: calc(100vh - var(--topbar-h));
 	}
 	aside {
 		background: white;
 		padding: 16px;
 		box-sizing: border-box;
-		max-height: calc(100vh - 53px);
+		max-height: calc(100vh - var(--topbar-h));
 		position: sticky;
-		top: 53px;
+		top: var(--topbar-h);
 		overflow: auto;
 	}
 	.left {
 		border-right: 1px solid var(--line);
 		display: flex;
 		flex-direction: column;
+	}
+	.center-head {
+		display: flex;
+		align-items: flex-start;
+		gap: 12px;
+	}
+	.center-head > :global(:first-child) {
+		flex: 1;
+		min-width: 0;
+	}
+	.print {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		flex: none;
 	}
 	.center {
 		padding: 18px 24px;

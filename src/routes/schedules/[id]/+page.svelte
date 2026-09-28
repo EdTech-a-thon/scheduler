@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { ArrowLeft, Check, Trash2, TriangleAlert, X } from '@lucide/svelte';
+	import { Check, Trash2, TriangleAlert, X } from '@lucide/svelte';
 	import { audienceMembers, hasNoAudience } from '$lib/domain/audience';
 	import { PALETTE } from '$lib/domain/palette';
 	import { applySpanAction, eraseFromSpans, replaceSpan } from '$lib/domain/spans';
@@ -103,8 +103,6 @@
 {:else}
 	<div class="editor">
 		<aside>
-			<a class="back" href="/schedules"><ArrowLeft size={15} /> Schedules</a>
-
 			<input
 				class="name"
 				value={schedule.name}
@@ -259,7 +257,7 @@
 <style>
 	.editor {
 		display: flex;
-		min-height: calc(100vh - 53px);
+		min-height: calc(100vh - var(--topbar-h));
 	}
 	aside {
 		width: 290px;
@@ -271,14 +269,6 @@
 		flex-direction: column;
 		gap: 16px;
 		box-sizing: border-box;
-	}
-	.back {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-		color: var(--muted);
-		text-decoration: none;
-		font-size: 13px;
 	}
 	.name {
 		font-size: 18px;

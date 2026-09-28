@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { focusOnMount } from '$lib/components/focus';
 	import { tick } from 'svelte';
-	import { CheckSquare, CircleChevronDown, FileDown, Plus, Trash2 } from '@lucide/svelte';
+	import { CheckSquare, CircleChevronDown, FileDown, FileUp, Plus, Trash2 } from '@lucide/svelte';
 	import {
 		audienceMembers,
 		audienceUsesProperty,
@@ -18,6 +18,7 @@
 	import PropertyIcon, { ICON_NAMES } from '$lib/components/PropertyIcon.svelte';
 	import SelectCell from '$lib/components/SelectCell.svelte';
 	import UndoButtons from '$lib/components/UndoButtons.svelte';
+	import { importer } from '$lib/state/importer.svelte';
 	import { store } from '$lib/state/store.svelte';
 
 	const data = $derived(store.data);
@@ -129,6 +130,9 @@
 		</div>
 		<div class="head-actions">
 			<UndoButtons />
+			<button class="export" onclick={() => importer.pick()}>
+				<FileUp size={16} /> Import
+			</button>
 			<button
 				class="export"
 				disabled={data.students.length === 0}

@@ -1,4 +1,6 @@
 :root {
+	/* Full-height pages leave room for the top bar. */
+	--topbar-h: 48px;
 	--text: #1f2328;
 	--muted: #6b7079;
 	--line: #e3e4e8;
@@ -111,4 +113,24 @@ h1 {
 
 .muted {
 	color: var(--muted);
+}
+
+/* Printing shows only what a page marks `print-only`, e.g. the Planner's Sessions. */
+.print-only {
+	display: none;
+}
+@media print {
+	@page {
+		size: landscape;
+		margin: 12mm;
+	}
+	:root {
+		background: white;
+	}
+	.no-print {
+		display: none !important;
+	}
+	.print-only {
+		display: block;
+	}
 }
