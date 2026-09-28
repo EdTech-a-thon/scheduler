@@ -681,6 +681,7 @@
 				<div
 					class="item {variant}"
 					class:selected={isSelected || item.look === 'copy'}
+					class:cornered={isSelected && editable && selectedIds.length === 1}
 					class:copying={item.look === 'copy'}
 					class:piece={item.look === 'piece'}
 					class:removed={item.look === 'removed'}
@@ -902,6 +903,26 @@
 		box-shadow:
 			0 0 0 2px white,
 			0 0 0 4px #273142;
+	}
+	/*
+	 * With corner knobs showing, the ring is square so it runs straight into
+	 * them; it's drawn by a pseudo-element because a box-shadow follows the
+	 * block's rounded corners. Offsets match the knobs': 4px of border on the
+	 * left, 1px elsewhere, then the 2px gap and 2px ring.
+	 */
+	.item.cornered {
+		box-shadow: none;
+	}
+	.item.cornered::before {
+		content: '';
+		position: absolute;
+		inset: -5px -5px -5px -8px;
+		border: 2px solid var(--c);
+		box-shadow: inset 0 0 0 2px white;
+		pointer-events: none;
+	}
+	.item.session.cornered::before {
+		border-color: #273142;
 	}
 	.item.copying {
 		opacity: 0.75;

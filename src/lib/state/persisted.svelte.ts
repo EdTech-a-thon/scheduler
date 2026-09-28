@@ -40,3 +40,14 @@ export const plannerUi = new Persisted('service-scheduler:v1:ui:planner', {
 export const editorUi = new Persisted('service-scheduler:v1:ui:editor', {
 	tool: 'draw' as Tool
 }).value;
+
+/**
+ * Getting started: whether this browser has been through the welcome tour,
+ * whether the Planner has been opened, and whether the checklist is showing.
+ * A browser that already has Students or Schedules counts as welcomed.
+ */
+export const onboarding = new Persisted('service-scheduler:v1:onboarding', {
+	welcomed: false,
+	visitedPlanner: false,
+	showChecklist: true
+}).value;

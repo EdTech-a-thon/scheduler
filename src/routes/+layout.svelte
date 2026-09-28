@@ -10,12 +10,14 @@
 		Settings,
 		Users
 	} from '@lucide/svelte';
+	import GettingStarted from '$lib/components/GettingStarted.svelte';
 	import HelpDialog from '$lib/components/HelpDialog.svelte';
 	import ImportDialog from '$lib/components/ImportDialog.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import { handleUndoKeys } from '$lib/components/shortcuts';
 	import type { AppData } from '$lib/domain/types';
 	import { importer } from '$lib/state/importer.svelte';
+	import { onboarding } from '$lib/state/persisted.svelte';
 	import { store } from '$lib/state/store.svelte';
 
 	let { children } = $props();
@@ -45,6 +47,7 @@
 	});
 
 	const isActive = (href: string) => page.url.pathname.startsWith(href);
+	const bare = $derived(page.url.pathname.startsWith('/welcome'));
 
 	let dragDepth = $state(0);
 	const hasFiles = (e: DragEvent) => e.dataTransfer?.types.includes('Files') ?? false;
@@ -78,87 +81,96 @@
 	<title>{crumbs.at(-1) ? `${crumbs.at(-1)!.label} · ` : ''}Service Scheduler</title>
 </svelte:head>
 
-<nav
-	class="rail no-print"
-	class:expanded
-	aria-label="Sections"
-	onpointerenter={(e) => e.pointerType === 'mouse' && expandLater(true)}
-	onpointerleave={(e) => e.pointerType === 'mouse' && expandLater(false)}
-	onfocusin={() => {
-		clearTimeout(timer);
-		expanded = true;
-	}}
-	onfocusout={(e) => {
-		if (!e.currentTarget.contains(e.relatedTarget as Node | null)) collapseNow();
-	}}
->
-	<a class="item brand" href="/caseload" onclick={collapseNow}>
-		<span class="glyph"><img src="/favicon.svg" alt="" width="28" height="28" /></span>
-		<span class="label">Service Scheduler</span>
-	</a>
-	{#each links as { href, label, icon: Icon } (href)}
-		<a
-			{href}
-			class="item"
-			class:active={isActive(href)}
-			aria-current={isActive(href) ? 'page' : undefined}
-			title={expanded ? undefined : label}
-			onclick={collapseNow}
-		>
-			<span class="glyph"><Icon size={18} /></span>
-			<span class="label">{label}</span>
+<!-- The welcome pages stand on their own, without the app around them. -->
+{#if !bare}
+	<nav
+		class="rail no-print"
+		class:expanded
+		aria-label="Sections"
+		onpointerenter={(e) => e.pointerType === 'mouse' && expandLater(true)}
+		onpointerleave={(e) => e.pointerType === 'mouse' && expandLater(false)}
+		onfocusin={() => {
+			clearTimeout(timer);
+			expanded = true;
+		}}
+		onfocusout={(e) => {
+			if (!e.currentTarget.contains(e.relatedTarget as Node | null)) collapseNow();
+		}}
+	>
+		<a class="item brand" href="/caseload" onclick={collapseNow}>
+			<span class="glyph"><img src="/favicon.svg" alt="" width="28" height="28" /></span>
+			<span class="label">Service Scheduler</span>
 		</a>
-	{/each}
-	<div class="foot">
-		<a
-			href="/settings"
-			class="item"
-			class:active={isActive('/settings')}
-			aria-current={isActive('/settings') ? 'page' : undefined}
-			title={expanded ? undefined : 'Settings'}
-			onclick={collapseNow}
-		>
-			<span class="glyph"><Settings size={18} /></span>
-			<span class="label">Settings</span>
-		</a>
-		<button
-			class="item"
-			aria-haspopup="dialog"
-			title={expanded ? undefined : 'Help'}
-			onclick={() => {
-				collapseNow();
-				helpOpen = true;
-			}}
-		>
-			<span class="glyph"><CircleQuestionMark size={20} /></span>
-			<span class="label">Help</span>
-		</button>
-	</div>
-</nav>
+		{#each links as { href, label, icon: Icon } (href)}
+			<a
+				{href}
+				class="item"
+				class:active={isActive(href)}
+				aria-current={isActive(href) ? 'page' : undefined}
+				title={expanded ? undefined : label}
+				onclick={collapseNow}
+			>
+				<span class="glyph"><Icon size={18} /></span>
+				<span class="label">{label}</span>
+			</a>
+		{/each}
+		<div class="foot">
+			<a
+				href="/settings"
+				class="item"
+				class:active={isActive('/settings')}
+				aria-current={isActive('/settings') ? 'page' : undefined}
+				title={expanded ? undefined : 'Settings'}
+				onclick={collapseNow}
+			>
+				<span class="glyph"><Settings size={18} /></span>
+				<span class="label">Settings</span>
+			</a>
+			<button
+				class="item"
+				aria-haspopup="dialog"
+				title={expanded ? undefined : 'Help'}
+				onclick={() => {
+					collapseNow();
+					helpOpen = true;
+				}}
+			>
+				<span class="glyph"><CircleQuestionMark size={20} /></span>
+				<span class="label">Help</span>
+			</button>
+		</div>
+	</nav>
 
-<div class="frame">
-	<header class="topbar no-print">
-		<nav aria-label="Breadcrumb">
-			<ol class="crumbs">
-				{#each crumbs as crumb, i (i)}
-					<li>
-						{#if i > 0}<ChevronRight size={14} aria-hidden="true" />{/if}
-						{#if crumb.href && i < crumbs.length - 1}
-							<a href={crumb.href}>{crumb.label}</a>
-						{:else}
-							<span aria-current="page">{crumb.label}</span>
-						{/if}
-					</li>
-				{/each}
-			</ol>
-		</nav>
-		<a class="credit" href="https://teacher.dev" target="_blank" rel="noopener noreferrer">
-			<img src="/edtechathon-logo.svg" alt="" width="20" height="20" />
-			Built by teacher.dev
-		</a>
-	</header>
-	<main>{@render children()}</main>
-</div>
+	<div class="frame">
+		<header class="topbar no-print">
+			<nav aria-label="Breadcrumb">
+				<ol class="crumbs">
+					{#each crumbs as crumb, i (i)}
+						<li>
+							{#if i > 0}<ChevronRight size={14} aria-hidden="true" />{/if}
+							{#if crumb.href && i < crumbs.length - 1}
+								<a href={crumb.href}>{crumb.label}</a>
+							{:else}
+								<span aria-current="page">{crumb.label}</span>
+							{/if}
+						</li>
+					{/each}
+				</ol>
+			</nav>
+			<a class="credit" href="https://teacher.dev" target="_blank" rel="noopener noreferrer">
+				<img src="/edtechathon-logo.svg" alt="" width="20" height="20" />
+				Built by teacher.dev
+			</a>
+		</header>
+		<main>{@render children()}</main>
+	</div>
+{:else}
+	{@render children()}
+{/if}
+
+{#if !bare && onboarding.showChecklist}
+	<GettingStarted />
+{/if}
 
 <!-- Drop an exported file or a backup anywhere to import it. -->
 <svelte:window

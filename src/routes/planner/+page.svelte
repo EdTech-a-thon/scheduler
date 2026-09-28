@@ -4,7 +4,9 @@
 	import { applySpanAction, eraseFromSpan, replaceSpan } from '$lib/domain/spans';
 	import { DAYS, SNAP } from '$lib/domain/time';
 	import type { Day, Minute } from '$lib/domain/types';
-	import { Printer } from '@lucide/svelte';
+	import { CalendarPlus, Printer } from '@lucide/svelte';
+	import { downloadText } from '$lib/components/download';
+	import { buildIcs, firstMonday } from '$lib/domain/ics';
 	import GridToolbar from '$lib/components/GridToolbar.svelte';
 	import PrintSessions from '$lib/components/PrintSessions.svelte';
 	import FloatingPanel from '$lib/components/FloatingPanel.svelte';
@@ -17,10 +19,13 @@
 		type RectChange
 	} from '$lib/components/TimeGrid.svelte';
 	import { handleGridKeys } from '$lib/components/shortcuts';
-	import { plannerUi } from '$lib/state/persisted.svelte';
+	import { onboarding, plannerUi } from '$lib/state/persisted.svelte';
 	import { newId, store } from '$lib/state/store.svelte';
 
 	const SESSION_COLOR = '#60a5fa';
+
+	// Opening the Planner ticks “Start planning” off the getting-started checklist.
+	onboarding.visitedPlanner = true;
 
 	const data = $derived(store.data);
 	const nameOf = $derived(new Map(data.students.map((s) => [s.id, s.name])));
@@ -108,6 +113,12 @@
 		return [...byBlocker].map(([label, names]) => `${label}: ${names.join(', ')}`);
 	}
 
+	/** The Sessions shown, for Google Calendar, Outlook and the like. */
+	function exportIcs() {
+		const ics = buildIcs($state.snapshot(visibleSessions), nameOf, firstMonday(new Date()));
+		downloadText(`sessions-${new Date().toISOString().slice(0, 10)}.ics`, ics, 'text/calendar');
+	}
+
 	function onduplicate(copies: RectChange[]) {
 		select(store.duplicateSessions(copies));
 	}
@@ -184,14 +195,24 @@
 					onclear: () => (plannerUi.sessionIds = [])
 				}}
 			/>
-			<button
-				class="print"
-				disabled={visibleSessions.length === 0}
-				title="Print the Sessions shown, or save them as a PDF"
-				onclick={() => window.print()}
-			>
-				<Printer size={15} /> Print
-			</button>
+			<div class="exports">
+				<button
+					class="print"
+					disabled={visibleSessions.length === 0}
+					title="Download the Sessions shown as a calendar file, repeating weekly from this week"
+					onclick={exportIcs}
+				>
+					<CalendarPlus size={15} /> Export .ics
+				</button>
+				<button
+					class="print"
+					disabled={visibleSessions.length === 0}
+					title="Print the Sessions shown, or save them as a PDF"
+					onclick={() => window.print()}
+				>
+					<Printer size={15} /> Print
+				</button>
+			</div>
 		</div>
 		<div class="scroll">
 			<TimeGrid
@@ -268,6 +289,11 @@
 	.center-head > :global(:first-child) {
 		flex: 1;
 		min-width: 0;
+	}
+	.exports {
+		display: flex;
+		gap: 8px;
+		flex: none;
 	}
 	.print {
 		display: flex;
