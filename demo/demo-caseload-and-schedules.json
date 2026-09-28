@@ -1,0 +1,303 @@
+{
+	"app": "service-scheduler",
+	"version": 1,
+	"properties": [
+		{
+			"id": "id1",
+			"name": "Grade",
+			"type": "select",
+			"icon": "graduation-cap"
+		},
+		{
+			"id": "id2",
+			"name": "Teacher",
+			"type": "select",
+			"icon": "user"
+		},
+		{
+			"id": "id3",
+			"name": "EL",
+			"type": "checkbox",
+			"icon": "languages"
+		}
+	],
+	"students": [
+		{
+			"name": "Ava",
+			"values": {
+				"id1": "K",
+				"id2": "Ms. Park"
+			}
+		},
+		{
+			"name": "Ben",
+			"values": {
+				"id1": "K",
+				"id2": "Ms. Park",
+				"id3": true
+			}
+		},
+		{
+			"name": "Carmen",
+			"values": {
+				"id1": "1st",
+				"id2": "Mr. Osei",
+				"id3": true
+			}
+		},
+		{
+			"name": "Dev",
+			"values": {
+				"id1": "1st",
+				"id2": "Mr. Osei"
+			}
+		},
+		{
+			"name": "Eli",
+			"values": {
+				"id1": "2nd",
+				"id2": "Ms. Lund"
+			}
+		},
+		{
+			"name": "Farah",
+			"values": {
+				"id1": "2nd",
+				"id2": "Ms. Lund",
+				"id3": true
+			}
+		},
+		{
+			"name": "Gus",
+			"values": {
+				"id1": "3rd",
+				"id2": "Mr. Diaz"
+			}
+		},
+		{
+			"name": "Hana",
+			"values": {
+				"id1": "3rd",
+				"id2": "Mr. Diaz"
+			}
+		},
+		{
+			"name": "Iris",
+			"values": {
+				"id1": "4th",
+				"id2": "Ms. Rivera",
+				"id3": true
+			}
+		},
+		{
+			"name": "Jonah",
+			"values": {
+				"id1": "4th",
+				"id2": "Ms. Rivera"
+			}
+		},
+		{
+			"name": "Kai",
+			"values": {
+				"id1": "4th",
+				"id2": "Mr. Chen"
+			}
+		},
+		{
+			"name": "Lena",
+			"values": {
+				"id1": "5th",
+				"id2": "Mr. Brooks"
+			}
+		},
+		{
+			"name": "Milo",
+			"values": {
+				"id1": "5th",
+				"id2": "Mr. Brooks",
+				"id3": true
+			}
+		},
+		{
+			"name": "Nora",
+			"values": {
+				"id1": "5th",
+				"id2": "Mr. Brooks"
+			}
+		}
+	],
+	"schedules": [
+		{
+			"id": "id18",
+			"name": "School Hours",
+			"color": "#5b6b82",
+			"mode": "allow",
+			"audience": {
+				"kind": "everyone",
+				"conditions": []
+			},
+			"windows": [
+				{
+					"id": "id19",
+					"startDay": 0,
+					"endDay": 1,
+					"start": 540,
+					"end": 855
+				},
+				{
+					"id": "id20",
+					"startDay": 2,
+					"endDay": 2,
+					"start": 540,
+					"end": 750
+				},
+				{
+					"id": "id21",
+					"startDay": 3,
+					"endDay": 4,
+					"start": 540,
+					"end": 855
+				}
+			]
+		},
+		{
+			"id": "id22",
+			"name": "K–2 Recess",
+			"color": "#30a46c",
+			"mode": "deny",
+			"audience": {
+				"kind": "conditions",
+				"conditions": [
+					{
+						"propertyId": "id1",
+						"op": "anyOf",
+						"values": ["K", "1st", "2nd"]
+					}
+				]
+			},
+			"windows": [
+				{
+					"id": "id23",
+					"startDay": 0,
+					"endDay": 4,
+					"start": 615,
+					"end": 645
+				}
+			]
+		},
+		{
+			"id": "id24",
+			"name": "3–5 Recess",
+			"color": "#00a2c7",
+			"mode": "deny",
+			"audience": {
+				"kind": "conditions",
+				"conditions": [
+					{
+						"propertyId": "id1",
+						"op": "anyOf",
+						"values": ["3rd", "4th", "5th"]
+					}
+				]
+			},
+			"windows": [
+				{
+					"id": "id25",
+					"startDay": 0,
+					"endDay": 4,
+					"start": 600,
+					"end": 630
+				},
+				{
+					"id": "id26",
+					"startDay": 0,
+					"endDay": 1,
+					"start": 840,
+					"end": 850
+				},
+				{
+					"id": "id27",
+					"startDay": 3,
+					"endDay": 4,
+					"start": 840,
+					"end": 850
+				}
+			]
+		},
+		{
+			"id": "id28",
+			"name": "Lunch",
+			"color": "#e2a336",
+			"mode": "deny",
+			"audience": {
+				"kind": "everyone",
+				"conditions": []
+			},
+			"windows": [
+				{
+					"id": "id29",
+					"startDay": 0,
+					"endDay": 4,
+					"start": 690,
+					"end": 730
+				}
+			]
+		},
+		{
+			"id": "id30",
+			"name": "Ms. Rivera Math Block",
+			"color": "#6e56cf",
+			"mode": "deny",
+			"audience": {
+				"kind": "conditions",
+				"conditions": [
+					{
+						"propertyId": "id2",
+						"op": "anyOf",
+						"values": ["Ms. Rivera"]
+					}
+				]
+			},
+			"windows": [
+				{
+					"id": "id31",
+					"startDay": 0,
+					"endDay": 4,
+					"start": 555,
+					"end": 615
+				}
+			]
+		},
+		{
+			"id": "id32",
+			"name": "EL Pull-out",
+			"color": "#e93d82",
+			"mode": "deny",
+			"audience": {
+				"kind": "conditions",
+				"conditions": [
+					{
+						"propertyId": "id3",
+						"op": "checked"
+					}
+				]
+			},
+			"windows": [
+				{
+					"id": "id33",
+					"startDay": 1,
+					"endDay": 1,
+					"start": 780,
+					"end": 810
+				},
+				{
+					"id": "id34",
+					"startDay": 3,
+					"endDay": 3,
+					"start": 780,
+					"end": 810
+				}
+			]
+		}
+	]
+}
