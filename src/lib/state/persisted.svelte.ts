@@ -43,11 +43,14 @@ export const editorUi = new Persisted('service-scheduler:v1:ui:editor', {
 
 /**
  * Getting started: whether this browser has been through the welcome tour,
- * whether the Planner has been opened, and whether the checklist is showing.
- * A browser that already has Students or Schedules counts as welcomed.
+ * whether the Planner has been opened with something to plan, whether the
+ * checklist is showing, and any items ticked or unticked by hand (which win
+ * over the automatic ticks). A browser that already has Students or
+ * Schedules counts as welcomed.
  */
 export const onboarding = new Persisted('service-scheduler:v1:onboarding', {
 	welcomed: false,
 	visitedPlanner: false,
-	showChecklist: true
+	showChecklist: true,
+	checked: {} as Record<string, boolean>
 }).value;

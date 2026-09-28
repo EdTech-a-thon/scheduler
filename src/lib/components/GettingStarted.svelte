@@ -5,14 +5,29 @@
 
 	/**
 	 * The getting-started checklist in the corner. Each item ticks itself off
-	 * from what's really there; once the last one ticks, it says so and goes.
-	 * Settings can bring it back.
+	 * from what's really there, or the Provider ticks or unticks it by hand,
+	 * which wins. Once the last one ticks, it says so and goes. Settings can
+	 * bring it back.
 	 */
-	const items = $derived([
-		{ label: 'Add your Students', href: '/caseload', done: store.data.students.length > 0 },
-		{ label: 'Add your Schedules', href: '/schedules', done: store.data.schedules.length > 0 },
-		{ label: 'Start planning', href: '/planner', done: onboarding.visitedPlanner }
-	]);
+	const auto = $derived({
+		students: store.data.students.length > 0,
+		schedules: store.data.schedules.length > 0,
+		planning: onboarding.visitedPlanner
+	});
+	const items = $derived(
+		[
+			{ key: 'students', label: 'Add your Students', href: '/caseload' },
+			{ key: 'schedules', label: 'Add your Schedules', href: '/schedules' },
+			{ key: 'planning', label: 'Start planning', href: '/planner' }
+		].map((i) => ({
+			...i,
+			done: onboarding.checked[i.key] ?? auto[i.key as keyof typeof auto]
+		}))
+	);
+
+	function toggle(key: string, done: boolean) {
+		onboarding.checked = { ...onboarding.checked, [key]: !done };
+	}
 	const count = $derived(items.filter((i) => i.done).length);
 	const allDone = $derived(count === items.length);
 
@@ -48,10 +63,16 @@
 	<div class="meter"><span style:width="{(count / items.length) * 100}%"></span></div>
 	{#if !collapsed}
 		<ol>
-			{#each items as item (item.label)}
+			{#each items as item (item.key)}
 				<li class:done={item.done}>
-					<span class="box"
-						>{#if item.done}<Check size={12} strokeWidth={3} />{/if}</span
+					<button
+						class="box"
+						role="checkbox"
+						aria-checked={item.done}
+						aria-label={item.label}
+						title={item.done ? 'Mark as not done' : 'Mark as done'}
+						onclick={() => toggle(item.key, item.done)}
+						>{#if item.done}<Check size={12} strokeWidth={3} />{/if}</button
 					>
 					{#if item.done}
 						<span>{item.label}</span>
@@ -146,6 +167,9 @@
 	}
 	.box {
 		flex: none;
+		padding: 0;
+		background: white;
+		cursor: pointer;
 		display: grid;
 		place-items: center;
 		width: 18px;
@@ -155,7 +179,12 @@
 		border-radius: 50%;
 		color: white;
 	}
-	li.done .box {
+	.box:hover:not(:disabled) {
+		border-color: #16a34a;
+		background: #f0fdf4;
+	}
+	li.done .box,
+	li.done .box:hover:not(:disabled) {
 		background: #16a34a;
 		border-color: #16a34a;
 		animation: tick 260ms both;

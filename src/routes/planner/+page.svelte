@@ -24,8 +24,10 @@
 
 	const SESSION_COLOR = '#60a5fa';
 
-	// Opening the Planner ticks “Start planning” off the getting-started checklist.
-	onboarding.visitedPlanner = true;
+	// Opening the Planner ticks “Start planning” off the getting-started
+	// checklist, but only once there are Students and Schedules to plan with.
+	if (store.data.students.length > 0 && store.data.schedules.length > 0)
+		onboarding.visitedPlanner = true;
 
 	const data = $derived(store.data);
 	const nameOf = $derived(new Map(data.students.map((s) => [s.id, s.name])));
