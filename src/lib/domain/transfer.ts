@@ -127,7 +127,11 @@ export function applyImport(
 			match.options = [...match.options, ...p.options].reduce(withOption, [] as string[]);
 		} else {
 			const id = newId();
-			data.properties.push({ ...newProperty(id, p.name, p.type, p.icon), options: [...p.options] });
+			data.properties.push({
+				...newProperty(id, p.name, p.type, p.icon),
+				options: [...p.options],
+				showInSessions: p.showInSessions
+			});
 			idMap.set(p.id, id);
 		}
 	}

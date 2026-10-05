@@ -4,7 +4,16 @@ import type { AppData } from './types';
 
 function data(): AppData {
 	return {
-		properties: [{ id: 'g', name: 'Grade', type: 'select', options: ['4th', '5th'], icon: 'tag' }],
+		properties: [
+			{
+				id: 'g',
+				name: 'Grade',
+				type: 'select',
+				options: ['4th', '5th'],
+				icon: 'tag',
+				showInSessions: false
+			}
+		],
 		students: [
 			{ id: 'a', name: 'Iris', values: { g: '5th' } },
 			{ id: 'b', name: 'Lena', values: { g: '5th' } }

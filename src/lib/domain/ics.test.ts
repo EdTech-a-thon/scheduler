@@ -55,7 +55,7 @@ describe('buildIcs', () => {
 			{ now: stamp }
 		);
 		expect(ics).toContain('SUMMARY:Artic\; group\r\n');
-		expect(ics).toContain('DESCRIPTION:Students: Ava\\, Ben\\n\\nBring cards\\nand stickers\r\n');
+		expect(ics).toContain('DESCRIPTION:Students:\\nAva\\nBen\\n\\nBring cards\\nand stickers\r\n');
 	});
 
 	it('names the calendar and lists the Session’s Providers', () => {
@@ -68,7 +68,15 @@ describe('buildIcs', () => {
 			])
 		});
 		expect(ics).toContain('X-WR-CALNAME:Jones’s Sessions\r\n');
-		expect(ics).toContain('DESCRIPTION:Providers: Jones\\, Elliot\\n\\nStudents: Ava\\, Ben\r\n');
+		expect(ics).toContain('DESCRIPTION:Providers: Jones\\, Elliot\\n\\nStudents:\\nAva\\nBen\r\n');
+	});
+
+	it('lists each Student on their own line with the details shown in Sessions', () => {
+		const ics = buildIcs([session()], names, monday, {
+			now: stamp,
+			detailsOf: new Map([['a', ['4th', 'EL']]])
+		});
+		expect(ics.replace(/\r\n /g, '')).toContain('DESCRIPTION:Students:\\nAva · 4th · EL\\nBen\r\n');
 	});
 
 	it('folds long lines at 75 bytes', () => {

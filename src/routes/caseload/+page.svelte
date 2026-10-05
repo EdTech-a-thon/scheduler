@@ -1,7 +1,15 @@
 <script lang="ts">
 	import { focusOnMount } from '$lib/components/focus';
 	import { tick } from 'svelte';
-	import { CheckSquare, CircleChevronDown, FileDown, FileUp, Plus, Trash2 } from '@lucide/svelte';
+	import {
+		CalendarDays,
+		CheckSquare,
+		CircleChevronDown,
+		FileDown,
+		FileUp,
+		Plus,
+		Trash2
+	} from '@lucide/svelte';
 	import {
 		audienceMembers,
 		audienceUsesProperty,
@@ -158,6 +166,9 @@
 									<button class="header-btn" onclick={toggle}>
 										<PropertyIcon name={p.icon} size={13} />
 										{p.name}
+										{#if p.showInSessions}<span class="shown" title="Shown in Sessions"
+												><CalendarDays size={12} /></span
+											>{/if}
 									</button>
 								{/snippet}
 								{#snippet children({ close })}
@@ -187,6 +198,17 @@
 									<div class="muted type-note">
 										{p.type === 'select' ? `Select · ${p.options.length} Options` : 'Checkbox'}
 									</div>
+									<label
+										class="show-toggle"
+										title="Show each Student’s {p.name} beside their Name in the Planner, Printout and Calendar File"
+									>
+										<input
+											type="checkbox"
+											checked={p.showInSessions}
+											onchange={(e) => store.setShowInSessions(p.id, e.currentTarget.checked)}
+										/>
+										<CalendarDays size={14} /> Show in Sessions
+									</label>
 									<button
 										class="menu-danger"
 										onclick={() => {
@@ -552,6 +574,19 @@
 	.type-note {
 		font-size: 12px;
 		padding: 0 6px 6px;
+	}
+	.show-toggle {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 7px 8px;
+		border-top: 1px solid var(--line);
+		cursor: pointer;
+	}
+	.shown {
+		display: inline-flex;
+		margin-left: auto;
+		color: var(--muted);
 	}
 	.pick,
 	.menu-danger {

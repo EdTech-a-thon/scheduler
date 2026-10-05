@@ -27,7 +27,7 @@ The required, unique identifier of a Student; need not be a legal name.
 _Avoid_: ID, label
 
 **Property**:
-A Provider-defined attribute every Student can have a value for, of type Select (one Option, e.g. Grade, Teacher) or Checkbox (e.g. EL). Properties can be added, renamed and removed; a Student may leave any Property unset.
+A Provider-defined attribute every Student can have a value for, of type Select (one Option, e.g. Grade, Teacher) or Checkbox (e.g. EL). Properties can be added, renamed and removed; a Student may leave any Property unset. A Property can be shown in Sessions, so each Student's value appears beside their Name wherever Sessions are shown: the Planner, the Printout and the Calendar File.
 _Avoid_: Tag, field, attribute, boolean, text
 
 **Option**:
@@ -99,6 +99,14 @@ _Avoid_: Layout page, scheduling page
 **Export**:
 A file of some Schedules, a Caseload, or both, sent to a teammate so they needn't re-enter it. Importing one adds to what's there; it never carries Sessions.
 _Avoid_: Share, template
+
+**Printout**:
+The Planner's Sessions on paper (or as a PDF): the week at a glance with each Session's Students in full, then each day's Sessions with their Notes.
+_Avoid_: Export, report, PDF export
+
+**Calendar File**:
+The Planner's Sessions as a file for Google Calendar, Outlook and the like, each repeating weekly on its Linked Days. Unlike an Export, it's for a calendar app, not a teammate, and can't be imported back.
+_Avoid_: Export, ICS export, sync
 
 **Backup**:
 A file of everything in the tool, Sessions and Providers included, kept for safekeeping or to move browsers. Importing one replaces everything.

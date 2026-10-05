@@ -11,9 +11,9 @@ function ids(prefix: string) {
 function source(): AppData {
 	return {
 		properties: [
-			{ id: 'g', name: 'Grade', type: 'select', options: [], icon: 'tag' },
-			{ id: 't', name: 'Teacher', type: 'select', options: [], icon: 'tag' },
-			{ id: 'el', name: 'EL', type: 'checkbox', options: [], icon: 'tag' }
+			{ id: 'g', name: 'Grade', type: 'select', options: [], icon: 'tag', showInSessions: false },
+			{ id: 't', name: 'Teacher', type: 'select', options: [], icon: 'tag', showInSessions: false },
+			{ id: 'el', name: 'EL', type: 'checkbox', options: [], icon: 'tag', showInSessions: true }
 		],
 		students: [
 			{ id: 's1', name: 'Iris', values: { g: '4th', el: true } },
@@ -61,8 +61,15 @@ function source(): AppData {
 function teammate(): AppData {
 	return {
 		properties: [
-			{ id: 'grade2', name: 'grade', type: 'select', options: [], icon: 'tag' },
-			{ id: 'room', name: 'Room', type: 'select', options: [], icon: 'tag' }
+			{
+				id: 'grade2',
+				name: 'grade',
+				type: 'select',
+				options: [],
+				icon: 'tag',
+				showInSessions: false
+			},
+			{ id: 'room', name: 'Room', type: 'select', options: [], icon: 'tag', showInSessions: false }
 		],
 		students: [{ id: 'a', name: 'IRIS', values: { room: '12' } }],
 		schedules: [],
@@ -140,6 +147,19 @@ describe('applyImport', () => {
 		expect(target.students[1].values).toEqual({ grade2: '5th' });
 	});
 
+	it('carries whether new Properties show in Sessions, keeping existing ones as they are', () => {
+		const data = source();
+		data.properties[0].showInSessions = true;
+		const file = roundTrip(buildExport(data, { includeCaseload: true, scheduleIds: [] }));
+		const target = teammate();
+		applyImport(target, file, { includeCaseload: true, scheduleIds: [] }, ids('n'));
+
+		const shown = (name: string) => target.properties.find((p) => p.name === name)?.showInSessions;
+		expect(shown('grade')).toBe(false);
+		expect(shown('EL')).toBe(true);
+		expect(shown('Teacher')).toBe(false);
+	});
+
 	it('accepts a file wrapped in a proxy, as Svelte state is', () => {
 		const file = roundTrip(
 			buildExport(source(), { includeCaseload: true, scheduleIds: ['recess'] })
@@ -195,6 +215,7 @@ describe('older files', () => {
 			})
 		);
 		expect(file.properties[0].type).toBe('select');
+		expect(file.properties[0].showInSessions).toBe(false);
 	});
 });
 

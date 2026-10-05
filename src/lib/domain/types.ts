@@ -14,6 +14,8 @@ export interface Property {
 	options: string[];
 	/** Name of the icon shown with the Property, from the curated set. */
 	icon: string;
+	/** Whether each Student's value shows beside their Name wherever Sessions are shown. */
+	showInSessions: boolean;
 }
 
 export type PropertyValue = string | boolean;

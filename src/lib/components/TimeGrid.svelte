@@ -15,6 +15,8 @@
 		icons?: string[];
 		/** Drawn faded, as context rather than the focus. */
 		muted?: boolean;
+		/** One line each beneath the subtitle, e.g. a Session's Students with their details. */
+		lines?: { name: string; details: string[] }[];
 	}
 
 	export interface BackgroundSegment {
@@ -53,7 +55,9 @@
 		TriangleAlert
 	} from '@lucide/svelte';
 	import { applySpanAction, mergeAdditions, mergeCheck } from '$lib/domain/spans';
+	import type { Attachment } from 'svelte/attachments';
 	import PropertyIcon from './PropertyIcon.svelte';
+	import { bandLayout } from './bands';
 	import {
 		HANDLE_CURSOR,
 		applyDrag,
@@ -111,9 +115,16 @@
 	}: Props = $props();
 
 	const RANGE = GRID_END - GRID_START;
-	const ROW_H = 76;
+	/**
+	 * Sessions carry their Students in full, so their rows are taller and the
+	 * week is wider (scrolling sideways) to wrap less. Windows keep it compact.
+	 */
+	const sessions = $derived(variant === 'session');
+	const ROW_H = $derived(sessions ? 140 : 76);
+	const HOUR_W = 200;
 	const PAD = 8;
 	const LANE = 8;
+	const BAND_GAP = 3;
 	const HOURS = Array.from({ length: RANGE / 60 + 1 }, (_, i) => GRID_START + i * 60);
 	const EDGES: Handle[] = ['l', 'r', 't', 'b', 'tl', 'tr', 'bl', 'br'];
 	const SIDE_EDGES: Handle[] = ['l', 'r'];
@@ -313,6 +324,66 @@
 		return out;
 	});
 
+	/** Sessions split overlapping rows into bands instead, so each is fully readable. */
+	const bands = $derived(sessions ? bandLayout(shown) : null);
+
+	function place(item: GridItem): { top: number; height: number } {
+		const days = item.endDay - item.startDay;
+		const b = bands?.get(item.id);
+		if (b) {
+			const bandH = (ROW_H - 2 * PAD - (b.of - 1) * BAND_GAP) / b.of;
+			return {
+				top: item.startDay * ROW_H + PAD + b.band * (bandH + BAND_GAP),
+				height: Math.max(18, days * ROW_H + bandH)
+			};
+		}
+		const lane = lanes.get(item.id) ?? 0;
+		return {
+			top: item.startDay * ROW_H + PAD + lane * LANE,
+			height: Math.max(18, (days + 1) * ROW_H - 2 * PAD - lane * LANE)
+		};
+	}
+
+	/** How many of each item's lines don't fit, keyed by id. */
+	let hidden = $state<Record<string, number>>({});
+
+	/**
+	 * Measures which lines fall below the block's bottom, hides them, and counts
+	 * them for the "+N more" badge, re-measuring whenever the block resizes.
+	 */
+	function fit(item: GridItem): Attachment<HTMLElement> {
+		return (node) => {
+			void item.lines;
+			const measure = () => {
+				const lines = [...node.querySelectorAll<HTMLElement>('.line')];
+				for (const l of lines) l.style.visibility = '';
+				const limit = node.clientHeight - 3;
+				const bottom = (l: HTMLElement) => l.offsetTop + l.offsetHeight;
+				let n = 0;
+				if (lines.some((l) => bottom(l) > limit)) {
+					// Leave room for the badge itself.
+					for (const l of lines)
+						if (bottom(l) > limit - 13) {
+							l.style.visibility = 'hidden';
+							n++;
+						}
+				}
+				if ((hidden[item.id] ?? 0) !== n) hidden[item.id] = n;
+			};
+			const observer = new ResizeObserver(measure);
+			observer.observe(node);
+			measure();
+			return () => observer.disconnect();
+		};
+	}
+
+	/** Everything an item says, for the hover tip when its block can't show it all. */
+	const fullText = (item: GridItem) => [
+		[item.title, formatRange(item.start, item.end)].filter(Boolean).join(' · '),
+		...(item.subtitle ? [item.subtitle] : []),
+		...(item.lines ?? []).map((l) => [l.name, ...l.details].join(' · '))
+	];
+
 	/** Stacking order: the smaller an item, the higher it sits. */
 	const stack = $derived(
 		new Map(
@@ -504,7 +575,16 @@
 	}
 
 	function updateTip(e: PointerEvent) {
-		if (!tooltip || (e.target as HTMLElement).closest('[data-item]')) {
+		const block = (e.target as HTMLElement).closest<HTMLElement>('[data-item]');
+		if (block) {
+			const item = shown.find((i) => i.id === block.dataset.item);
+			tip =
+				item && hidden[item.id]
+					? { x: e.clientX + 14, y: e.clientY + 14, lines: fullText(item) }
+					: null;
+			return;
+		}
+		if (!tooltip) {
 			tip = null;
 			return;
 		}
@@ -626,6 +706,8 @@
 
 <div
 	class="grid tool-{tool}"
+	class:sessions
+	style:--hour-w={sessions ? `${HOUR_W}px` : null}
 	bind:this={root}
 	class:dragging={dragCursor}
 	style:--drag-cursor={dragCursor}
@@ -681,7 +763,7 @@
 			{/if}
 
 			{#each shown as item (item.id)}
-				{@const lane = lanes.get(item.id) ?? 0}
+				{@const box = place(item)}
 				{@const isSelected = selected.has(item.id) && !item.look}
 				<div
 					class="item {variant}"
@@ -697,14 +779,11 @@
 					style:--c={item.color}
 					style:left="{pct(item.start)}%"
 					style:width="{pct(item.end) - pct(item.start)}%"
-					style:top="{item.startDay * ROW_H + PAD + lane * LANE}px"
-					style:height="{Math.max(
-						18,
-						(item.endDay - item.startDay + 1) * ROW_H - 2 * PAD - lane * LANE
-					)}px"
+					style:top="{box.top}px"
+					style:height="{box.height}px"
 					style:z-index={stack.get(item.id) ?? 2}
 				>
-					<div class="content">
+					<div class="content" class:overflowing={hidden[item.id]} {@attach fit(item)}>
 						<div class="label">
 							{#if item.warning}<TriangleAlert size={12} />{/if}
 							{#each item.icons ?? [] as icon, i (i)}<PropertyIcon name={icon} size={12} />{/each}
@@ -712,6 +791,14 @@
 							<span>{formatRange(item.start, item.end)}</span>
 						</div>
 						{#if item.subtitle}<div class="sub">{item.subtitle}</div>{/if}
+						{#each item.lines ?? [] as line, i (i)}
+							<div class="line">
+								<span class="name">{line.name}</span>{#if line.details.length}<span class="detail"
+										>{' · ' + line.details.join(' · ')}</span
+									>{/if}
+							</div>
+						{/each}
+						{#if hidden[item.id]}<div class="more">+{hidden[item.id]} more</div>{/if}
 					</div>
 					{#if editable && !item.look}
 						<!-- With several selected, only side edges resize (together); no vertical resizing. -->
@@ -827,6 +914,17 @@
 	}
 	.body {
 		display: flex;
+	}
+	/* Session weeks are wider than the screen; the day names stay in view while scrolling. */
+	.grid.sessions {
+		min-width: calc(52px + var(--hour-w) * 10);
+	}
+	.sessions .corner,
+	.sessions .days {
+		position: sticky;
+		left: 0;
+		z-index: 1100;
+		background: var(--surface);
 	}
 	.day {
 		display: flex;
@@ -982,6 +1080,44 @@
 	/* Icons keep their size however narrow the block. */
 	.label :global(svg) {
 		flex: none;
+	}
+	/* Sessions wrap rather than cut anything off. */
+	.session .label {
+		flex-wrap: wrap;
+		white-space: normal;
+		column-gap: 3px;
+		row-gap: 0;
+	}
+	.session .label strong {
+		overflow-wrap: anywhere;
+	}
+	.session .label span {
+		white-space: nowrap;
+	}
+	.session .sub {
+		white-space: normal !important;
+		overflow-wrap: anywhere;
+	}
+	.session .content {
+		padding: 3px 4px;
+	}
+	.line {
+		overflow-wrap: anywhere;
+	}
+	.line .detail {
+		opacity: 0.75;
+	}
+	.more {
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		padding: 8px 6px 1px;
+		font-size: 10px;
+		font-weight: 600;
+		text-align: right;
+		background: linear-gradient(to bottom, transparent, #273142 55%);
+		pointer-events: none;
 	}
 	.sub {
 		white-space: nowrap;

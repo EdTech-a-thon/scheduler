@@ -246,6 +246,13 @@ class Store {
 		});
 	}
 
+	setShowInSessions(id: string, show: boolean) {
+		this.change((d) => {
+			const p = d.properties.find((p) => p.id === id);
+			if (p) p.showInSessions = show;
+		});
+	}
+
 	/** Also drops the Property's values and every Condition that used it. */
 	deleteProperty(id: string) {
 		this.change((d) => {

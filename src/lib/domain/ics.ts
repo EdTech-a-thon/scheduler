@@ -61,8 +61,15 @@ export function buildIcs(
 	{
 		now = new Date(),
 		providerNameOf = new Map<string, string>(),
+		detailsOf = new Map<string, string[]>(),
 		calendarName = 'Sessions'
-	}: { now?: Date; providerNameOf?: Map<string, string>; calendarName?: string } = {}
+	}: {
+		now?: Date;
+		providerNameOf?: Map<string, string>;
+		/** Each Student's values for the Properties shown in Sessions, by Student id. */
+		detailsOf?: Map<string, string[]>;
+		calendarName?: string;
+	} = {}
 ): string {
 	const lines = [
 		'BEGIN:VCALENDAR',
@@ -72,12 +79,16 @@ export function buildIcs(
 		`X-WR-CALNAME:${escape(calendarName)}`
 	];
 	for (const s of sessions) {
-		const names = s.studentIds.map((id) => nameOf.get(id)).filter(Boolean) as string[];
+		const present = s.studentIds.filter((id) => nameOf.has(id));
+		const names = present.map((id) => nameOf.get(id)!);
+		const studentLines = present.map((id) =>
+			[nameOf.get(id)!, ...(detailsOf.get(id) ?? [])].join(' · ')
+		);
 		const providers = s.providerIds.map((id) => providerNameOf.get(id)).filter(Boolean);
 		const days = BYDAY.slice(s.startDay, s.endDay + 1).join(',');
 		const description = [
 			providers.length ? `Providers: ${providers.join(', ')}` : '',
-			names.length ? `Students: ${names.join(', ')}` : '',
+			studentLines.length ? `Students:\n${studentLines.join('\n')}` : '',
 			s.notes.trim()
 		]
 			.filter(Boolean)

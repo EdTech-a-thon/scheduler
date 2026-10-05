@@ -84,5 +84,5 @@ export function newProperty(
 	type: Property['type'],
 	icon = defaultIcon(name, type)
 ): Property {
-	return { id, name, type, options: [], icon };
+	return { id, name, type, options: [], icon, showInSessions: false };
 }

@@ -14,6 +14,7 @@
 	import PropertyIcon from '$lib/components/PropertyIcon.svelte';
 	import { downloadText } from '$lib/components/download';
 	import { buildIcs, firstMonday } from '$lib/domain/ics';
+	import { studentDetails, studentLines } from '$lib/domain/sessionDetails';
 	import GridToolbar from '$lib/components/GridToolbar.svelte';
 	import PrintSessions from '$lib/components/PrintSessions.svelte';
 	import FloatingPanel from '$lib/components/FloatingPanel.svelte';
@@ -76,22 +77,25 @@
 	const visibleSessions = $derived(shown.map((x) => x.session));
 	const visibleIds = $derived(new Set(visibleSessions.map((s) => s.id)));
 
+	/** A Session's Students in full, each with the Properties shown in Sessions. */
+	const linesOf = (s: Session) => studentLines(s, data.students, data.properties);
+
 	const items = $derived<GridItem[]>(
 		shown.map(({ session: s, muted }) => {
-			const names = s.studentIds
-				.map((id) => nameOf.get(id))
-				.filter(Boolean)
-				.join(', ');
+			const lines = linesOf(s);
 			const providers = s.providerIds.map((id) => providerOf.get(id)).filter((p) => !!p);
-			// A co-treat lists every Provider, so their names lead the subtitle.
-			const who = providers.length > 1 ? providers.map((p) => p.name).join(' + ') : '';
-			const subtitle = [who, s.title ? names : ''].filter(Boolean).join(' · ');
 			return {
 				...s,
 				color: providers[0]?.color ?? NO_PROVIDER_COLOR,
 				icons: providers.map((p) => p.icon),
-				title: s.title || names || 'Untitled Session',
-				subtitle: subtitle || undefined,
+				// Untitled Sessions lead with their time; the Students follow in full.
+				title: s.title || (lines.length ? undefined : 'Untitled Session'),
+				// Naming the Provider whose week this is would only repeat the heading.
+				subtitle:
+					providers.length === 1 && providers[0].id === planningFor
+						? undefined
+						: providers.map((p) => p.name).join(' + ') || undefined,
+				lines,
 				warning: hasConflict(s, data),
 				muted
 			};
@@ -150,6 +154,7 @@
 	function exportIcs() {
 		const ics = buildIcs($state.snapshot(visibleSessions), nameOf, firstMonday(new Date()), {
 			providerNameOf: new Map(data.providers.map((p) => [p.id, p.name])),
+			detailsOf: new Map(data.students.map((s) => [s.id, studentDetails(s, data.properties)])),
 			calendarName: focused ? `${focused.name}’s Sessions` : 'Sessions'
 		});
 		const who = focused ? `${slug(focused.name)}-` : '';
@@ -334,7 +339,7 @@
 
 <PrintSessions
 	sessions={visibleSessions}
-	{nameOf}
+	{linesOf}
 	providers={data.providers}
 	forProvider={focused?.name}
 	forNames={chosen.map((s) => s.name)}

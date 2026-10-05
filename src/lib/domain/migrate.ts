@@ -6,7 +6,14 @@ import type { AppData, Property, Schedule, Session, Window } from './types';
 export function migrateProperties(properties: Property[]): Property[] {
 	return properties.map((p) => {
 		const type = (p.type as string) === 'text' ? 'select' : p.type;
-		return { ...p, type, options: p.options ?? [], icon: p.icon ?? defaultIcon(p.name, type) };
+		return {
+			...p,
+			type,
+			options: p.options ?? [],
+			icon: p.icon ?? defaultIcon(p.name, type),
+			// Properties weren't shown in Sessions before.
+			showInSessions: p.showInSessions ?? false
+		};
 	});
 }
 

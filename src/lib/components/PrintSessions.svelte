@@ -1,22 +1,27 @@
 <script lang="ts">
 	import { DAY_NAMES, DAYS, GRID_END, GRID_START, formatRange, formatTime } from '$lib/domain/time';
 	import { NO_PROVIDER_COLOR } from '$lib/domain/providers';
-	import type { Provider, Session } from '$lib/domain/types';
+	import type { Day, Provider, Session } from '$lib/domain/types';
+	import type { StudentLine } from '$lib/domain/sessionDetails';
+	import type { Attachment } from 'svelte/attachments';
 	import PropertyIcon from './PropertyIcon.svelte';
+	import { bandLayout } from './bands';
 
 	/**
 	 * The Planner's Sessions laid out for paper, shown only when printing:
-	 * the week at a glance, then each day's Sessions in full.
+	 * the week at a glance with every Session's Students in full, then each
+	 * day's Sessions with their Notes.
 	 */
 	let {
 		sessions,
-		nameOf,
+		linesOf,
 		providers,
 		forProvider,
 		forNames
 	}: {
 		sessions: Session[];
-		nameOf: Map<string, string>;
+		/** A Session's Students, each with the Properties shown in Sessions. */
+		linesOf: (s: Session) => StudentLine[];
 		providers: Provider[];
 		/** The Provider whose week this is; unset for Everyone. */
 		forProvider?: string;
@@ -26,35 +31,65 @@
 	const providersOf = (s: Session) =>
 		s.providerIds.map((id) => providers.find((p) => p.id === id)).filter((p) => !!p);
 
-	const names = (s: Session) =>
-		s.studentIds
-			.map((id) => nameOf.get(id))
-			.filter(Boolean)
-			.join(', ');
-	const titleOf = (s: Session) => s.title || names(s) || 'Untitled Session';
-
-	/** Each day's Sessions in time order, with overlapping ones in side-by-side lanes. */
+	/** Each day's Sessions in time order, overlapping ones splitting the row into bands. */
 	const days = $derived(
 		DAYS.map((d) => {
 			const list = sessions
 				.filter((s) => s.startDay <= d && d <= s.endDay)
 				.sort((a, b) => a.start - b.start || a.end - b.end);
-			const laneEnds: number[] = [];
-			const placed = list.map((s) => {
-				let lane = laneEnds.findIndex((end) => end <= s.start);
-				if (lane === -1) lane = laneEnds.length;
-				laneEnds[lane] = s.end;
-				return { s, lane };
-			});
-			return { d, placed, lanes: Math.max(1, laneEnds.length) };
+			const bands = bandLayout(list.map((s) => ({ ...s, startDay: d, endDay: d as Day })));
+			const placed = list.map((s) => ({ s, lines: linesOf(s), ...bands.get(s.id)! }));
+			return { d, placed };
 		})
 	);
 
-	const hours = Array.from(
-		{ length: (GRID_END - GRID_START) / 60 + 1 },
-		(_, i) => GRID_START + i * 60
+	/** Text sizes a crowded block steps down through; the last is about 6.5pt. */
+	const SIZES = [10, 9.5, 9, 8.5];
+
+	/**
+	 * Shrinks a block's text a step at a time until it fits; at the smallest
+	 * size, hides Students from the end behind "+N more" (the table has them all).
+	 */
+	function fit(lines: StudentLine[]): Attachment<HTMLElement> {
+		return (node) => {
+			void lines;
+			const measure = () => {
+				const rows = [...node.querySelectorAll<HTMLElement>('.line')];
+				const more = node.querySelector<HTMLElement>('.more')!;
+				const fits = () => node.scrollHeight <= node.clientHeight;
+				for (const r of rows) r.style.display = '';
+				more.style.display = 'none';
+				for (const size of SIZES) {
+					node.style.fontSize = `${size}px`;
+					if (fits()) return;
+				}
+				more.style.display = '';
+				let n = 0;
+				while (!fits() && n < rows.length) {
+					rows[rows.length - 1 - n].style.display = 'none';
+					n++;
+					more.textContent = `+${n} more`;
+				}
+			};
+			const observer = new ResizeObserver(measure);
+			observer.observe(node);
+			measure();
+			return () => observer.disconnect();
+		};
+	}
+
+	/**
+	 * Paper only shows the hours the Sessions use, so each Session gets as much
+	 * width as the page allows for its Students.
+	 */
+	const from = $derived(
+		sessions.length ? Math.floor(Math.min(...sessions.map((s) => s.start)) / 60) * 60 : GRID_START
 	);
-	const pct = (m: number) => ((m - GRID_START) / (GRID_END - GRID_START)) * 100;
+	const to = $derived(
+		sessions.length ? Math.ceil(Math.max(...sessions.map((s) => s.end)) / 60) * 60 : GRID_END
+	);
+	const hours = $derived(Array.from({ length: (to - from) / 60 + 1 }, (_, i) => from + i * 60));
+	const pct = (m: number) => ((m - from) / (to - from)) * 100;
 	const printed = new Date().toLocaleDateString(undefined, { dateStyle: 'long' });
 </script>
 
@@ -73,26 +108,38 @@
 		<div class="hours">
 			{#each hours as h (h)}<span style:left="{pct(h)}%">{formatTime(h)}</span>{/each}
 		</div>
-		{#each days as { d, placed, lanes } (d)}
+		{#each days as { d, placed } (d)}
 			<div class="day">
 				<div class="dname">{DAY_NAMES[d].slice(0, 3)}</div>
 				<div class="track">
 					{#each hours as h (h)}<i style:left="{pct(h)}%"></i>{/each}
-					{#each placed as { s, lane } (s.id)}
+					{#each placed as { s, lines, band, of } (s.id)}
 						{@const ps = providersOf(s)}
 						<div
 							class="block"
 							style:--c={ps[0]?.color ?? NO_PROVIDER_COLOR}
 							style:left="{pct(s.start)}%"
 							style:width="{pct(s.end) - pct(s.start)}%"
-							style:top="{(lane / lanes) * 100}%"
-							style:height="{100 / lanes}%"
+							style:top="{(band / of) * 100}%"
+							style:height="{100 / of}%"
+							{@attach fit(lines)}
 						>
-							<strong
-								>{#each ps as p (p.id)}<PropertyIcon name={p.icon} size={9} />{/each}
-								{titleOf(s)}</strong
-							>
-							<span>{formatRange(s.start, s.end)}</span>
+							<div class="head">
+								{#each ps as p (p.id)}<PropertyIcon name={p.icon} size={9} />{/each}
+								{#if s.title || !lines.length}<strong>{s.title || 'Untitled Session'}</strong>{/if}
+								<span class="when">{formatRange(s.start, s.end)}</span>
+							</div>
+							{#if ps.length && !(ps.length === 1 && ps[0].name === forProvider)}<div class="who">
+									{ps.map((p) => p.name).join(' + ')}
+								</div>{/if}
+							{#each lines as line, i (i)}
+								<div class="line">
+									{line.name}{#if line.details.length}<span class="detail"
+											>{' · ' + line.details.join(' · ')}</span
+										>{/if}
+								</div>
+							{/each}
+							<div class="more"></div>
 						</div>
 					{/each}
 				</div>
@@ -113,16 +160,22 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each placed as { s } (s.id)}
+						{#each placed as { s, lines } (s.id)}
 							<tr>
 								<td class="time">{formatRange(s.start, s.end)}</td>
-								<td>{titleOf(s)}</td>
+								<td>{s.title || '—'}</td>
 								<td
 									>{providersOf(s)
 										.map((p) => p.name)
 										.join(', ') || '—'}</td
 								>
-								<td>{names(s) || '—'}</td>
+								<td>
+									{#each lines as line, i (i)}<div>
+											{line.name}{#if line.details.length}<span class="detail"
+													>{' · ' + line.details.join(' · ')}</span
+												>{/if}
+										</div>{:else}—{/each}
+								</td>
 								<td class="notes">{s.notes}</td>
 							</tr>
 						{/each}
@@ -141,6 +194,21 @@
 		font-size: 11px;
 		print-color-adjust: exact;
 		-webkit-print-color-adjust: exact;
+	}
+	/*
+	 * On screen the sheet is laid out out of sight at a landscape Letter page's
+	 * width, so each block can measure how much it holds before printing.
+	 */
+	@media screen {
+		.sheet {
+			display: block;
+			position: fixed;
+			top: 0;
+			left: -10000px;
+			width: 964px;
+			visibility: hidden;
+			pointer-events: none;
+		}
 	}
 	header h1 {
 		margin: 0;
@@ -167,7 +235,8 @@
 	}
 	.day {
 		display: flex;
-		height: 64px;
+		/* Five of these fill a landscape page. */
+		height: 118px;
 		border-top: 1px solid #ccc;
 		margin-right: 16px;
 	}
@@ -199,15 +268,24 @@
 		border-radius: 3px;
 		background: color-mix(in srgb, var(--c) 16%, white);
 		overflow: hidden;
-		font-size: 9px;
-		line-height: 1.25;
+		font-size: 10px;
+		line-height: 1.2;
+		overflow-wrap: anywhere;
 	}
-	.block strong,
-	.block span {
-		display: block;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
+	.head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		column-gap: 4px;
+	}
+	.when,
+	.who,
+	.detail {
+		color: #555;
+	}
+	.more {
+		font-weight: 600;
+		color: #555;
 	}
 	.agenda {
 		break-before: page;
@@ -242,6 +320,9 @@
 	.time {
 		white-space: nowrap;
 		width: 90px;
+	}
+	td .detail {
+		color: #555;
 	}
 	.notes {
 		white-space: pre-wrap;
