@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { DAY_NAMES, DAYS, GRID_END, GRID_START, formatRange, formatTime } from '$lib/domain/time';
-	import type { Session } from '$lib/domain/types';
+	import { NO_PROVIDER_COLOR } from '$lib/domain/providers';
+	import type { Provider, Session } from '$lib/domain/types';
+	import PropertyIcon from './PropertyIcon.svelte';
 
 	/**
 	 * The Planner's Sessions laid out for paper, shown only when printing:
@@ -9,8 +11,20 @@
 	let {
 		sessions,
 		nameOf,
+		providers,
+		forProvider,
 		forNames
-	}: { sessions: Session[]; nameOf: Map<string, string>; forNames: string[] } = $props();
+	}: {
+		sessions: Session[];
+		nameOf: Map<string, string>;
+		providers: Provider[];
+		/** The Provider whose week this is; unset for Everyone. */
+		forProvider?: string;
+		forNames: string[];
+	} = $props();
+
+	const providersOf = (s: Session) =>
+		s.providerIds.map((id) => providers.find((p) => p.id === id)).filter((p) => !!p);
 
 	const names = (s: Session) =>
 		s.studentIds
@@ -46,9 +60,9 @@
 
 <div class="print-only sheet">
 	<header>
-		<h1>Sessions</h1>
+		<h1>{forProvider ? `${forProvider}’s Sessions` : 'Sessions'}</h1>
 		<p>
-			{forNames.length ? `For ${forNames.join(', ')}` : 'All Students'} · {sessions.length} Session{sessions.length ===
+			{forNames.length ? `With ${forNames.join(', ')}` : 'All Students'} · {sessions.length} Session{sessions.length ===
 			1
 				? ''
 				: 's'} · Printed {printed}
@@ -65,14 +79,19 @@
 				<div class="track">
 					{#each hours as h (h)}<i style:left="{pct(h)}%"></i>{/each}
 					{#each placed as { s, lane } (s.id)}
+						{@const ps = providersOf(s)}
 						<div
 							class="block"
+							style:--c={ps[0]?.color ?? NO_PROVIDER_COLOR}
 							style:left="{pct(s.start)}%"
 							style:width="{pct(s.end) - pct(s.start)}%"
 							style:top="{(lane / lanes) * 100}%"
 							style:height="{100 / lanes}%"
 						>
-							<strong>{titleOf(s)}</strong>
+							<strong
+								>{#each ps as p (p.id)}<PropertyIcon name={p.icon} size={9} />{/each}
+								{titleOf(s)}</strong
+							>
 							<span>{formatRange(s.start, s.end)}</span>
 						</div>
 					{/each}
@@ -87,13 +106,22 @@
 			{#if placed.length}
 				<table>
 					<thead>
-						<tr><th class="time">Time</th><th>Session</th><th>Students</th><th>Notes</th></tr>
+						<tr>
+							<th class="time">Time</th><th>Session</th><th>Providers</th><th>Students</th><th
+								>Notes</th
+							>
+						</tr>
 					</thead>
 					<tbody>
 						{#each placed as { s } (s.id)}
 							<tr>
 								<td class="time">{formatRange(s.start, s.end)}</td>
 								<td>{titleOf(s)}</td>
+								<td
+									>{providersOf(s)
+										.map((p) => p.name)
+										.join(', ') || '—'}</td
+								>
 								<td>{names(s) || '—'}</td>
 								<td class="notes">{s.notes}</td>
 							</tr>
@@ -166,10 +194,10 @@
 		position: absolute;
 		box-sizing: border-box;
 		padding: 2px 4px;
-		border: 1px solid #2563eb;
+		border: 1px solid var(--c);
 		border-left-width: 3px;
 		border-radius: 3px;
-		background: #dbeafe;
+		background: color-mix(in srgb, var(--c) 16%, white);
 		overflow: hidden;
 		font-size: 9px;
 		line-height: 1.25;

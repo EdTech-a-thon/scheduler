@@ -7,15 +7,19 @@ A tool for school service providers (e.g. speech-language pathologists) to layer
 ### People
 
 **Provider**:
-The service professional using the tool (e.g. an SLP) who schedules services for their Caseload.
-_Avoid_: Teacher, user, SLP (as a general term)
+A service professional (e.g. an SLP or OT) who serves Students in Sessions. One person using the tool may book Sessions for several Providers.
+_Avoid_: Teacher, user, therapist, SLP (as a general term)
+
+**Me**:
+The Provider the person using the tool identifies as, named when they first start. New Sessions go to Me unless the Planner is planning for another Provider.
+_Avoid_: Default Provider, current user, self
 
 **Student**:
-One child on the Provider's Caseload, identified by a unique Name.
+One child on the Caseload, identified by a unique Name.
 _Avoid_: Kiddo, kid, client
 
 **Caseload**:
-The full set of Students a Provider manages.
+Every Student in the tool, whichever Providers serve them. Which Providers serve a Student follows from their Sessions.
 _Avoid_: Roster, class, list
 
 **Name**:
@@ -79,15 +83,15 @@ The time that is Free Time for every Student in a selected group.
 _Avoid_: Overlap, shared availability
 
 **Session**:
-A booked time on one or more Linked Days of the Template Week in which the Provider serves a group of Students. A Session is kept even if all of its Students are removed.
+A booked time on one or more Linked Days of the Template Week in which one or more Providers serve a group of Students. A Session is kept even if all of its Students or Providers are removed.
 _Avoid_: Event, appointment, meeting
 
 **Conflict**:
-A Session that overlaps time that isn't Free Time for one of its Students. Conflicts are allowed and flagged, not prevented.
+A Session that overlaps time that isn't Free Time for one of its Students, or that overlaps another Session of one of its Providers. Conflicts are allowed and flagged, not prevented.
 _Avoid_: Error, clash
 
 **Planner**:
-The screen where the Provider selects Students, sees their Schedules layered together, and books Sessions into Common Free Time.
+The screen where you pick a Provider to plan for, select Students, see their Schedules layered together, and book Sessions into Common Free Time.
 _Avoid_: Layout page, scheduling page
 
 ### Sharing
@@ -97,5 +101,5 @@ A file of some Schedules, a Caseload, or both, sent to a teammate so they needn'
 _Avoid_: Share, template
 
 **Backup**:
-A file of everything the Provider has, Sessions included, kept for safekeeping or to move browsers. Importing one replaces everything.
+A file of everything in the tool, Sessions and Providers included, kept for safekeeping or to move browsers. Importing one replaces everything.
 _Avoid_: Account export, snapshot

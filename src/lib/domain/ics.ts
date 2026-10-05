@@ -58,19 +58,28 @@ export function buildIcs(
 	sessions: Session[],
 	nameOf: Map<string, string>,
 	monday: Date,
-	now = new Date()
+	{
+		now = new Date(),
+		providerNameOf = new Map<string, string>(),
+		calendarName = 'Sessions'
+	}: { now?: Date; providerNameOf?: Map<string, string>; calendarName?: string } = {}
 ): string {
 	const lines = [
 		'BEGIN:VCALENDAR',
 		'VERSION:2.0',
 		'PRODID:-//teacher.dev//Service Scheduler//EN',
 		'CALSCALE:GREGORIAN',
-		'X-WR-CALNAME:Sessions'
+		`X-WR-CALNAME:${escape(calendarName)}`
 	];
 	for (const s of sessions) {
 		const names = s.studentIds.map((id) => nameOf.get(id)).filter(Boolean) as string[];
+		const providers = s.providerIds.map((id) => providerNameOf.get(id)).filter(Boolean);
 		const days = BYDAY.slice(s.startDay, s.endDay + 1).join(',');
-		const description = [names.length ? `Students: ${names.join(', ')}` : '', s.notes.trim()]
+		const description = [
+			providers.length ? `Providers: ${providers.join(', ')}` : '',
+			names.length ? `Students: ${names.join(', ')}` : '',
+			s.notes.trim()
+		]
 			.filter(Boolean)
 			.join('\n\n');
 		lines.push(

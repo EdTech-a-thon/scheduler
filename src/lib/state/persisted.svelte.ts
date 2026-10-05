@@ -34,7 +34,9 @@ export const plannerUi = new Persisted('service-scheduler:v1:ui:planner', {
 	filters: [] as Condition[],
 	query: '',
 	tool: 'draw' as Tool,
-	sessionIds: [] as string[]
+	sessionIds: [] as string[],
+	/** A Provider's id, 'everyone', or '' for Me. */
+	planningFor: ''
 }).value;
 
 export const editorUi = new Persisted('service-scheduler:v1:ui:editor', {

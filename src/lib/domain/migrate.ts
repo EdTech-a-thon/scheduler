@@ -50,7 +50,9 @@ export function repairSpans(data: AppData, newId: () => string = () => crypto.ra
 		end: s.end,
 		title: s.title,
 		notes: s.notes,
-		studentIds: s.studentIds
+		studentIds: s.studentIds,
+		// Sessions had no Providers before.
+		providerIds: s.providerIds ?? []
 	}));
 }
 
@@ -59,7 +61,10 @@ export function migrateData(data: AppData): AppData {
 	const next = {
 		...data,
 		properties: migrateProperties(data.properties),
-		schedules: migrateSchedules(data.schedules)
+		schedules: migrateSchedules(data.schedules),
+		// Providers came later; a save without them has nobody named yet.
+		providers: data.providers ?? [],
+		meId: data.meId ?? null
 	};
 	ensureOptions(next);
 	repairSpans(next);

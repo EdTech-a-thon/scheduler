@@ -1,10 +1,17 @@
 <script lang="ts">
 	import { matchesAudience } from '$lib/domain/audience';
-	import { blockersFor, plannerLayers, sessionConflicts } from '$lib/domain/freeTime';
+	import { blockersFor, hasConflict, plannerLayers } from '$lib/domain/freeTime';
+	import {
+		NO_PROVIDER_COLOR,
+		plannerSessions,
+		providerLabel,
+		resolvePlanningFor
+	} from '$lib/domain/providers';
 	import { applySpanAction, eraseFromSpan, replaceSpan } from '$lib/domain/spans';
 	import { DAYS, SNAP } from '$lib/domain/time';
-	import type { Day, Minute } from '$lib/domain/types';
-	import { CalendarPlus, Printer } from '@lucide/svelte';
+	import type { Day, Minute, Session } from '$lib/domain/types';
+	import { CalendarPlus, Printer, UsersRound } from '@lucide/svelte';
+	import PropertyIcon from '$lib/components/PropertyIcon.svelte';
 	import { downloadText } from '$lib/components/download';
 	import { buildIcs, firstMonday } from '$lib/domain/ics';
 	import GridToolbar from '$lib/components/GridToolbar.svelte';
@@ -21,8 +28,6 @@
 	import { handleGridKeys } from '$lib/components/shortcuts';
 	import { onboarding, plannerUi } from '$lib/state/persisted.svelte';
 	import { newId, store } from '$lib/state/store.svelte';
-
-	const SESSION_COLOR = '#60a5fa';
 
 	// Opening the Planner ticks “Start planning” off the getting-started
 	// checklist, but only once there are Students and Schedules to plan with.
@@ -49,29 +54,52 @@
 		)
 	);
 
-	/** With nobody selected, every Session shows; otherwise those with a selected Student. */
-	const visibleSessions = $derived(
-		plannerUi.selected.length === 0
-			? data.sessions
-			: data.sessions.filter((s) => s.studentIds.some((id) => plannerUi.selected.includes(id)))
-	);
+	const providerOf = $derived(new Map(data.providers.map((p) => [p.id, p])));
+	/** The Provider whose week this is, or null for Everyone. */
+	const planningFor = $derived(resolvePlanningFor(plannerUi.planningFor, data));
+	const focused = $derived(planningFor ? providerOf.get(planningFor) : undefined);
+
+	/**
+	 * The Provider's whole week, plus other Sessions with a selected Student
+	 * (muted). For Everyone: every Session, or those with a selected Student.
+	 */
+	const shown = $derived.by(() => {
+		const list = plannerSessions(data.sessions, planningFor, plannerUi.selected);
+		// A selected Session stays put (muted) even once it's no longer this Provider's,
+		// so reassigning it in the popup doesn't make it vanish mid-edit.
+		const ids = new Set(list.map((x) => x.session.id));
+		const kept = data.sessions
+			.filter((s) => plannerUi.sessionIds.includes(s.id) && !ids.has(s.id))
+			.map((session) => ({ session, muted: true }));
+		return [...list, ...kept];
+	});
+	const visibleSessions = $derived(shown.map((x) => x.session));
 	const visibleIds = $derived(new Set(visibleSessions.map((s) => s.id)));
 
 	const items = $derived<GridItem[]>(
-		visibleSessions.map((s) => {
+		shown.map(({ session: s, muted }) => {
 			const names = s.studentIds
 				.map((id) => nameOf.get(id))
 				.filter(Boolean)
 				.join(', ');
+			const providers = s.providerIds.map((id) => providerOf.get(id)).filter((p) => !!p);
+			// A co-treat lists every Provider, so their names lead the subtitle.
+			const who = providers.length > 1 ? providers.map((p) => p.name).join(' + ') : '';
+			const subtitle = [who, s.title ? names : ''].filter(Boolean).join(' · ');
 			return {
 				...s,
-				color: SESSION_COLOR,
+				color: providers[0]?.color ?? NO_PROVIDER_COLOR,
+				icons: providers.map((p) => p.icon),
 				title: s.title || names || 'Untitled Session',
-				subtitle: s.title ? names : undefined,
-				warning: sessionConflicts(s, data).length > 0
+				subtitle: subtitle || undefined,
+				warning: hasConflict(s, data),
+				muted
 			};
 		})
 	);
+
+	/** Who a new Session goes to: the Provider planned for, or Me when planning for Everyone. */
+	const newSessionProviders = $derived(planningFor ? [planningFor] : data.meId ? [data.meId] : []);
 
 	/**
 	 * Whether the last selection action has finished non-additively. The popup
@@ -92,14 +120,17 @@
 	);
 	let grid: ReturnType<typeof TimeGrid> | undefined = $state();
 
-	/** Sessions only merge when they serve the same Students. */
+	/** Sessions only merge when they serve the same Students with the same Providers. */
 	function mergeBlocker(ids: string[]): string | null {
-		const sets = ids.map((id) =>
-			[...(data.sessions.find((s) => s.id === id)?.studentIds ?? [])].sort().join()
-		);
-		return sets.every((x) => x === sets[0])
-			? null
-			: 'Only Sessions with the same Students can merge';
+		const key = (pick: (s: Session) => string[]) =>
+			ids.map((id) => {
+				const s = data.sessions.find((s) => s.id === id);
+				return [...(s ? pick(s) : [])].sort().join();
+			});
+		const same = (keys: string[]) => keys.every((x) => x === keys[0]);
+		if (!same(key((s) => s.studentIds))) return 'Only Sessions with the same Students can merge';
+		if (!same(key((s) => s.providerIds))) return 'Only Sessions with the same Providers can merge';
+		return null;
 	}
 
 	function tooltip(day: Day, minute: Minute): string[] | null {
@@ -117,16 +148,30 @@
 
 	/** The Sessions shown, for Google Calendar, Outlook and the like. */
 	function exportIcs() {
-		const ics = buildIcs($state.snapshot(visibleSessions), nameOf, firstMonday(new Date()));
-		downloadText(`sessions-${new Date().toISOString().slice(0, 10)}.ics`, ics, 'text/calendar');
+		const ics = buildIcs($state.snapshot(visibleSessions), nameOf, firstMonday(new Date()), {
+			providerNameOf: new Map(data.providers.map((p) => [p.id, p.name])),
+			calendarName: focused ? `${focused.name}’s Sessions` : 'Sessions'
+		});
+		const who = focused ? `${slug(focused.name)}-` : '';
+		downloadText(
+			`${who}sessions-${new Date().toISOString().slice(0, 10)}.ics`,
+			ics,
+			'text/calendar'
+		);
 	}
+
+	const slug = (name: string) =>
+		name
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-|-$/g, '') || 'provider';
 
 	function onduplicate(copies: RectChange[]) {
 		select(store.duplicateSessions(copies));
 	}
 
 	function oncreate(rect: GridRect) {
-		select([store.createSession(rect, [...plannerUi.selected])]);
+		select([store.createSession(rect, [...plannerUi.selected], newSessionProviders)]);
 	}
 
 	function onchange(changes: RectChange[]) {
@@ -176,6 +221,28 @@
 
 <div class="planner no-print">
 	<aside class="left">
+		<label class="planning-for">
+			<span>Planning for</span>
+			<span class="pick">
+				<span class="dot" class:all={!focused} style:background={focused?.color}>
+					{#if focused}<PropertyIcon name={focused.icon} size={12} />{:else}<UsersRound
+							size={14}
+						/>{/if}
+				</span>
+				<select
+					value={planningFor ?? 'everyone'}
+					onchange={(e) => {
+						const v = e.currentTarget.value;
+						plannerUi.planningFor = v === data.meId ? '' : v;
+					}}
+				>
+					{#each data.providers as p (p.id)}
+						<option value={p.id}>{providerLabel(p, data.meId)}</option>
+					{/each}
+					<option value="everyone">Everyone</option>
+				</select>
+			</span>
+		</label>
 		<StudentPicker
 			bind:selected={plannerUi.selected}
 			bind:query={plannerUi.query}
@@ -250,12 +317,28 @@
 					<span class="muted">{count} of {chosen.length}</span>
 				</a>
 			{/each}
-			<span class="key"><span class="sw session"></span> Session</span>
+			{#if focused}
+				<span class="key">
+					<span class="sw session" style:border-left-color={focused.color}></span>
+					{focused.name}’s Sessions
+				</span>
+				{#if items.some((i) => i.muted)}
+					<span class="key"><span class="sw session muted"></span> Other Providers’ Sessions</span>
+				{/if}
+			{:else}
+				<span class="key"><span class="sw session"></span> Session</span>
+			{/if}
 		</div>
 	</div>
 </div>
 
-<PrintSessions sessions={visibleSessions} {nameOf} forNames={chosen.map((s) => s.name)} />
+<PrintSessions
+	sessions={visibleSessions}
+	{nameOf}
+	providers={data.providers}
+	forProvider={focused?.name}
+	forNames={chosen.map((s) => s.name)}
+/>
 
 {#if openSession}
 	<FloatingPanel anchorId={openSession.id} onclose={() => (plannerUi.sessionIds = [])}>
@@ -338,6 +421,49 @@
 	.sw.session {
 		background: #273142;
 		border-color: #273142;
+		border-left-width: 4px;
+	}
+	.sw.session.muted {
+		opacity: 0.5;
+	}
+	.planning-for {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		margin-bottom: 16px;
+		padding-bottom: 16px;
+		border-bottom: 1px solid var(--line);
+		font-size: 12px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--muted);
+	}
+	.pick {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		text-transform: none;
+		letter-spacing: normal;
+	}
+	.pick select {
+		flex: 1;
+		min-width: 0;
+		font-size: 14px;
+		font-weight: 600;
+	}
+	.dot {
+		display: grid;
+		place-items: center;
+		flex: none;
+		width: 24px;
+		height: 24px;
+		border-radius: 999px;
+		color: white;
+	}
+	.dot.all {
+		background: var(--surface-2);
+		color: var(--muted);
 	}
 	.scroll {
 		overflow-x: auto;

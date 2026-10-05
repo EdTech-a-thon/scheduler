@@ -5,6 +5,7 @@
 		CalendarRange,
 		ChevronRight,
 		CircleQuestionMark,
+		Contact,
 		FileUp,
 		LayoutGrid,
 		Settings,
@@ -14,6 +15,7 @@
 	import HelpDialog from '$lib/components/HelpDialog.svelte';
 	import ImportDialog from '$lib/components/ImportDialog.svelte';
 	import Modal from '$lib/components/Modal.svelte';
+	import NamePrompt from '$lib/components/NamePrompt.svelte';
 	import { handleUndoKeys } from '$lib/components/shortcuts';
 	import type { AppData } from '$lib/domain/types';
 	import { importer } from '$lib/state/importer.svelte';
@@ -24,6 +26,7 @@
 
 	const links = [
 		{ href: '/caseload', label: 'Caseload', icon: Users },
+		{ href: '/providers', label: 'Providers', icon: Contact },
 		{ href: '/schedules', label: 'Schedules', icon: CalendarRange },
 		{ href: '/planner', label: 'Planner', icon: LayoutGrid }
 	];
@@ -223,6 +226,11 @@
 		</p>
 		<p class="muted">You can undo this right after.</p>
 	</Modal>
+{/if}
+
+<!-- Everyone names themselves once; new users do it at the end of the welcome tour. -->
+{#if !bare && !store.data.meId && !importer.restoring}
+	<NamePrompt />
 {/if}
 
 {#if helpOpen}

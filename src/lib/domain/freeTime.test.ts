@@ -28,7 +28,9 @@ const data = (schedules: Schedule[], sessions: Session[] = []): AppData => ({
 	properties: [],
 	students: [timmy, stacy],
 	schedules,
-	sessions
+	sessions,
+	providers: [],
+	meId: null
 });
 
 describe('freeTime', () => {
@@ -67,7 +69,8 @@ describe('freeTime', () => {
 			end: 730,
 			title: '',
 			notes: '',
-			studentIds: ['s']
+			studentIds: ['s'],
+			providerIds: []
 		};
 		expect(freeTime(stacy, data([schoolHours], [session]), 0)).toEqual([
 			[540, 700],
@@ -117,7 +120,8 @@ describe('sessionConflicts', () => {
 			end: 660,
 			title: '',
 			notes: '',
-			studentIds: ['t', 's']
+			studentIds: ['t', 's'],
+			providerIds: []
 		};
 		const conflicts = sessionConflicts(session, data([schoolHours, recess4], [session]));
 		expect(conflicts.map((c) => [c.studentId, c.day, c.blockers.map((b) => b.label)])).toEqual([

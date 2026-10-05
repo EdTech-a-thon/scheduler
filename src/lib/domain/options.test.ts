@@ -22,7 +22,9 @@ function data(): AppData {
 				windows: []
 			}
 		],
-		sessions: []
+		sessions: [],
+		providers: [],
+		meId: null
 	};
 }
 

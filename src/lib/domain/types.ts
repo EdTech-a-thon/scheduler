@@ -67,10 +67,21 @@ export interface Schedule {
 	windows: Window[];
 }
 
+/** A service professional who serves Students in Sessions. */
+export interface Provider {
+	id: string;
+	name: string;
+	color: string;
+	/** Name of the icon shown with the Provider, from the curated set. */
+	icon: string;
+}
+
 export interface Session extends Span {
 	title: string;
 	notes: string;
 	studentIds: string[];
+	/** Empty when nobody is serving it, e.g. after its Provider was removed. */
+	providerIds: string[];
 }
 
 export interface AppData {
@@ -78,4 +89,7 @@ export interface AppData {
 	students: Student[];
 	schedules: Schedule[];
 	sessions: Session[];
+	providers: Provider[];
+	/** The Provider the person using the tool identifies as; unset until they give their name. */
+	meId: string | null;
 }

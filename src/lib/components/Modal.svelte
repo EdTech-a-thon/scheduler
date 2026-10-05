@@ -10,7 +10,8 @@
 		typeToConfirm?: string;
 		disabled?: boolean;
 		onconfirm: () => void;
-		oncancel: () => void;
+		/** Leave unset for a question that must be answered: no Cancel, Escape or backdrop close. */
+		oncancel?: () => void;
 		children: Snippet;
 	}
 
@@ -29,12 +30,12 @@
 	const ready = $derived(!disabled && (!typeToConfirm || typed.trim() === typeToConfirm.trim()));
 </script>
 
-<svelte:window onkeydown={(e) => e.key === 'Escape' && oncancel()} />
+<svelte:window onkeydown={(e) => e.key === 'Escape' && oncancel?.()} />
 
 <div
 	class="backdrop"
 	role="presentation"
-	onclick={(e) => e.target === e.currentTarget && oncancel()}
+	onclick={(e) => e.target === e.currentTarget && oncancel?.()}
 >
 	<div class="modal" role="dialog" aria-modal="true" aria-label={title}>
 		<h2>{title}</h2>
@@ -50,7 +51,7 @@
 			</label>
 		{/if}
 		<div class="actions">
-			<button onclick={oncancel}>Cancel</button>
+			{#if oncancel}<button onclick={oncancel}>Cancel</button>{/if}
 			<button class={danger ? 'danger' : 'primary'} disabled={!ready} onclick={onconfirm}>
 				{confirmLabel}
 			</button>
