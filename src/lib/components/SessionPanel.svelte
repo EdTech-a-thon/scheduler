@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Trash2, TriangleAlert, X } from '@lucide/svelte';
-	import { sessionConflicts } from '$lib/domain/freeTime';
+	import { providerConflicts, sessionConflicts } from '$lib/domain/freeTime';
 	import {
 		DAY_NAMES,
 		DAY_SHORT,
@@ -15,6 +15,7 @@
 	} from '$lib/domain/time';
 	import type { Day, Session } from '$lib/domain/types';
 	import { store } from '$lib/state/store.svelte';
+	import ProviderPicker from './ProviderPicker.svelte';
 
 	let { session, onclose }: { session: Session; onclose: () => void } = $props();
 
@@ -34,8 +35,25 @@
 				grouped.set(key, entry);
 			}
 		}
+		for (const c of providerConflicts(session, store.data.sessions)) {
+			const name = store.data.providers.find((p) => p.id === c.providerId)?.name ?? '';
+			const key = `${c.providerId}|${c.other.id}`;
+			const entry = grouped.get(key) ?? {
+				name,
+				label: c.other.title || otherNames(c.other.studentIds) || 'Another Session',
+				days: []
+			};
+			entry.days.push(c.day);
+			grouped.set(key, entry);
+		}
 		return [...grouped.entries()];
 	});
+	function otherNames(ids: string[]) {
+		return ids
+			.map((id) => students.find((s) => s.id === id)?.name)
+			.filter(Boolean)
+			.join(', ');
+	}
 	const addable = $derived(students.filter((s) => !session.studentIds.includes(s.id)));
 
 	const update = (fn: (s: Session) => void) => store.updateSession(session.id, fn);
@@ -127,6 +145,18 @@
 			/>
 		</label>
 	</div>
+
+	<section>
+		<h3>Providers</h3>
+		<ProviderPicker
+			providers={store.data.providers}
+			meId={store.data.meId}
+			selectedIds={session.providerIds}
+			onadd={(id) => update((x) => void (x.providerIds.includes(id) || x.providerIds.push(id)))}
+			onremove={(id) => update((x) => (x.providerIds = x.providerIds.filter((i) => i !== id)))}
+			oncreate={(name) => store.addProvider(name)}
+		/>
+	</section>
 
 	<section>
 		<h3>Students</h3>

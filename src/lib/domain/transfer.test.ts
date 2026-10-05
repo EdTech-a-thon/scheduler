@@ -49,9 +49,12 @@ function source(): AppData {
 				end: 730,
 				title: '',
 				notes: '',
-				studentIds: ['s1']
+				studentIds: ['s1'],
+				providerIds: []
 			}
-		]
+		],
+		providers: [],
+		meId: null
 	};
 }
 
@@ -63,7 +66,9 @@ function teammate(): AppData {
 		],
 		students: [{ id: 'a', name: 'IRIS', values: { room: '12' } }],
 		schedules: [],
-		sessions: []
+		sessions: [],
+		providers: [],
+		meId: null
 	};
 }
 

@@ -139,3 +139,34 @@ export function sessionConflicts(session: Session, data: AppData): Conflict[] {
 	}
 	return out;
 }
+
+export interface ProviderConflict {
+	providerId: string;
+	day: Day;
+	/** The Provider's other Session at the same time. */
+	other: Session;
+}
+
+/** A Session conflicts wherever one of its Providers has another Session at the same time. */
+export function providerConflicts(session: Session, sessions: Session[]): ProviderConflict[] {
+	const out: ProviderConflict[] = [];
+	for (const providerId of session.providerIds) {
+		for (const other of sessions) {
+			if (other.id === session.id || !other.providerIds.includes(providerId)) continue;
+			if (other.start >= session.end || session.start >= other.end) continue;
+			for (let d = session.startDay; d <= session.endDay; d++) {
+				const day = d as Day;
+				if (coversDay(other, day)) out.push({ providerId, day, other });
+			}
+		}
+	}
+	return out;
+}
+
+/** Whether a Session has any Conflict, for its Students or its Providers. */
+export function hasConflict(session: Session, data: AppData): boolean {
+	return (
+		providerConflicts(session, data.sessions).length > 0 ||
+		sessionConflicts(session, data).length > 0
+	);
+}

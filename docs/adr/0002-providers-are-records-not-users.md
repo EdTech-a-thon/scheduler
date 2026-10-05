@@ -1,0 +1,3 @@
+# Providers are records in one shared dataset, not separate users
+
+User testing showed that Providers need to see each other's Sessions so they don't double-book a shared Student. We model a Provider as a record that Sessions point to, in the same single local dataset. One person (often a lead) books Sessions for several Providers, and there is one Caseload shared by all of them. We chose this over giving each Provider their own data and syncing Sessions between copies: two people editing copies of the same Sessions drift apart with no way to merge, and syncing needs the hosted backend that ADR 0001 deliberately avoids. ADR 0001 still holds. A Provider gets their week as a printout or calendar file, not as a file they import and edit.

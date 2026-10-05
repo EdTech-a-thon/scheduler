@@ -2,12 +2,14 @@ import { normalizeText, removePropertyFromAudience } from '$lib/domain/audience'
 import { migrateData } from '$lib/domain/migrate';
 import { deleteOption, newProperty, withOption } from '$lib/domain/options';
 import { nextColor } from '$lib/domain/palette';
+import { findProviderByName, newProvider } from '$lib/domain/providers';
 import { applyImport, type ExportChoice, type TransferFile } from '$lib/domain/transfer';
 import type {
 	AppData,
 	Property,
 	PropertyType,
 	PropertyValue,
+	Provider,
 	Schedule,
 	Session,
 	Span,
@@ -33,7 +35,9 @@ function emptyData(): AppData {
 		],
 		students: [],
 		schedules: [],
-		sessions: []
+		sessions: [],
+		providers: [],
+		meId: null
 	};
 }
 
@@ -159,6 +163,64 @@ class Store {
 			d.students = backup.students;
 			d.schedules = backup.schedules;
 			d.sessions = backup.sessions;
+			d.providers = backup.providers;
+			d.meId = backup.meId;
+		});
+	}
+
+	// Providers
+
+	/**
+	 * Names the Provider the person using the tool is. Sessions nobody serves
+	 * yet (all of them, on a first naming) become theirs.
+	 */
+	setMe(name: string) {
+		if (!name.trim()) return;
+		this.change((d) => {
+			let me = findProviderByName(d.providers, name);
+			if (!me) {
+				me = newProvider(newId(), name, d.providers);
+				d.providers.unshift(me);
+			}
+			d.meId = me.id;
+			for (const s of d.sessions) if (s.providerIds.length === 0) s.providerIds = [me.id];
+		});
+	}
+
+	/** Adds a Provider, or returns the one already called that. */
+	addProvider(name: string): string | null {
+		if (!name.trim()) return null;
+		const existing = findProviderByName(this.data.providers, name);
+		if (existing) return existing.id;
+		const provider = newProvider(newId(), name, this.data.providers);
+		this.change((d) => void d.providers.push(provider));
+		return provider.id;
+	}
+
+	isProviderNameTaken(name: string, exceptId?: string) {
+		const p = findProviderByName(this.data.providers, name);
+		return !!p && p.id !== exceptId;
+	}
+
+	updateProvider(id: string, fn: (p: Provider) => void) {
+		this.change((d) => {
+			const p = d.providers.find((p) => p.id === id);
+			if (p) fn(p);
+		});
+	}
+
+	renameProvider(id: string, name: string): boolean {
+		if (!name.trim() || this.isProviderNameTaken(name, id)) return false;
+		this.updateProvider(id, (p) => (p.name = name.trim()));
+		return true;
+	}
+
+	/** Removes the Provider from their Sessions; the Sessions themselves are kept. */
+	deleteProvider(id: string) {
+		this.change((d) => {
+			d.providers = d.providers.filter((p) => p.id !== id);
+			for (const s of d.sessions) s.providerIds = s.providerIds.filter((x) => x !== id);
+			if (d.meId === id) d.meId = null;
 		});
 	}
 
@@ -279,9 +341,11 @@ class Store {
 
 	// Sessions
 
-	createSession(span: Omit<Span, 'id'>, studentIds: string[]): string {
+	createSession(span: Omit<Span, 'id'>, studentIds: string[], providerIds: string[]): string {
 		const id = newId();
-		this.change((d) => d.sessions.push({ ...span, id, title: '', notes: '', studentIds }));
+		this.change((d) =>
+			d.sessions.push({ ...span, id, title: '', notes: '', studentIds, providerIds })
+		);
 		return id;
 	}
 
@@ -306,7 +370,7 @@ class Store {
 		});
 	}
 
-	/** Copies with the same Students, title and notes at new times. Returns the copies' ids. */
+	/** Copies with the same Students, Providers, title and notes at new times. Returns the copies' ids. */
 	duplicateSessions(copies: { id: string; rect: Omit<Span, 'id'> }[]): string[] {
 		const ids: string[] = [];
 		this.change((d) => {

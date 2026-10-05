@@ -9,6 +9,7 @@ const session = (over: Partial<Session> = {}): Session => ({
 	start: 9 * 60 + 5,
 	end: 9 * 60 + 35,
 	studentIds: ['a', 'b'],
+	providerIds: [],
 	title: '',
 	notes: '',
 	...over
@@ -29,7 +30,7 @@ describe('firstMonday', () => {
 
 describe('buildIcs', () => {
 	it('makes each Session a weekly event on its days, in local time', () => {
-		const ics = buildIcs([session()], names, monday, stamp);
+		const ics = buildIcs([session()], names, monday, { now: stamp });
 		expect(ics).toContain('BEGIN:VCALENDAR\r\n');
 		expect(ics).toContain('DTSTART:20260929T090500\r\n'); // Tuesday
 		expect(ics).toContain('DTEND:20260929T093500\r\n');
@@ -41,7 +42,7 @@ describe('buildIcs', () => {
 	});
 
 	it('repeats a Session on each of its Linked Days', () => {
-		const ics = buildIcs([session({ startDay: 0, endDay: 2 })], names, monday, stamp);
+		const ics = buildIcs([session({ startDay: 0, endDay: 2 })], names, monday, { now: stamp });
 		expect(ics).toContain('DTSTART:20260928T090500\r\n');
 		expect(ics).toContain('RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE\r\n');
 	});
@@ -51,14 +52,27 @@ describe('buildIcs', () => {
 			[session({ title: 'Artic; group', notes: 'Bring cards\nand stickers' })],
 			names,
 			monday,
-			stamp
+			{ now: stamp }
 		);
 		expect(ics).toContain('SUMMARY:Artic\; group\r\n');
 		expect(ics).toContain('DESCRIPTION:Students: Ava\\, Ben\\n\\nBring cards\\nand stickers\r\n');
 	});
 
+	it('names the calendar and lists the Session’s Providers', () => {
+		const ics = buildIcs([session({ providerIds: ['p', 'q'] })], names, monday, {
+			now: stamp,
+			calendarName: 'Jones’s Sessions',
+			providerNameOf: new Map([
+				['p', 'Jones'],
+				['q', 'Elliot']
+			])
+		});
+		expect(ics).toContain('X-WR-CALNAME:Jones’s Sessions\r\n');
+		expect(ics).toContain('DESCRIPTION:Providers: Jones\\, Elliot\\n\\nStudents: Ava\\, Ben\r\n');
+	});
+
 	it('folds long lines at 75 bytes', () => {
-		const ics = buildIcs([session({ notes: 'x'.repeat(200) })], names, monday, stamp);
+		const ics = buildIcs([session({ notes: 'x'.repeat(200) })], names, monday, { now: stamp });
 		for (const line of ics.split('\r\n'))
 			expect(new TextEncoder().encode(line).length).toBeLessThanOrEqual(75);
 		expect(ics).toContain('\r\n x');

@@ -6,11 +6,37 @@
 	import { onboarding } from '$lib/state/persisted.svelte';
 	import { store } from '$lib/state/store.svelte';
 
+	const me = $derived(store.data.providers.find((p) => p.id === store.data.meId));
+	let nameTaken = $state(false);
+
 	function exportAccount() {
 		const date = new Date().toISOString().slice(0, 10);
 		downloadJson(`service-scheduler-backup-${date}.json`, buildBackup($state.snapshot(store.data)));
 	}
 </script>
+
+<section class="card">
+	<h2>Your name</h2>
+	<p class="muted">
+		How you appear on Sessions you run. Manage everyone else on the <a href="/providers"
+			>Providers</a
+		> page.
+	</p>
+	{#if me}
+		<input
+			class="me"
+			value={me.name}
+			aria-label="Your name"
+			onchange={(e) => {
+				nameTaken = !store.renameProvider(me.id, e.currentTarget.value);
+				if (nameTaken) e.currentTarget.value = me.name;
+			}}
+		/>
+		{#if nameTaken}<p class="small error">
+				That name is empty or already used by another Provider.
+			</p>{/if}
+	{/if}
+</section>
 
 <section class="card">
 	<h2>Getting started</h2>
@@ -29,7 +55,7 @@
 	<p class="muted">
 		Everything you make stays in this browser and nowhere else. Export a backup to keep a copy on
 		your computer or to move to another browser. It holds everything: your Caseload, Properties,
-		Schedules and Sessions.
+		Schedules, Providers and Sessions.
 	</p>
 	<div class="actions">
 		<button class="primary" onclick={exportAccount}><Download size={15} /> Export account</button>
@@ -41,6 +67,14 @@
 </section>
 
 <style>
+	.me {
+		width: min(320px, 100%);
+		margin-top: 10px;
+	}
+	.error {
+		color: var(--danger);
+		margin: 6px 0 0;
+	}
 	.actions {
 		display: flex;
 		gap: 8px;

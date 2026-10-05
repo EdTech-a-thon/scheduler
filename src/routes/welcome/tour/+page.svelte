@@ -5,6 +5,7 @@
 	import WelcomeHeader from '$lib/components/welcome/WelcomeHeader.svelte';
 	import { STEPS } from '$lib/components/welcome/steps';
 	import { onboarding } from '$lib/state/persisted.svelte';
+	import { store } from '$lib/state/store.svelte';
 
 	// Reaching the tour counts as being welcomed, so Home isn't the pitch again.
 	onboarding.welcomed = true;
@@ -13,7 +14,14 @@
 	const step = $derived(STEPS[index]);
 	const last = $derived(index === STEPS.length - 1);
 
+	/** Someone not yet named gives their name on the last step, before getting started. */
+	const needsName = !store.data.meId;
+	let name = $state('');
+	const blocked = $derived(last && needsName && !name.trim());
+
 	function finish() {
+		if (blocked) return;
+		if (needsName) store.setMe(name);
 		onboarding.showChecklist = true;
 		goto('/caseload');
 	}
@@ -28,6 +36,8 @@
 
 <svelte:window
 	onkeydown={(e) => {
+		// Arrows in the name field move the cursor, not the step.
+		if (e.target instanceof HTMLInputElement) return;
 		if (e.key === 'ArrowRight' && !last) index++;
 		if (e.key === 'ArrowLeft' && index > 0) index--;
 	}}
@@ -48,11 +58,21 @@
 				</div>
 				<p class="lede">{step.text}</p>
 			{/key}
+			{#if last && needsName}
+				<label class="name">
+					<span>What should we call you on the schedule?</span>
+					<input
+						placeholder="e.g. Ms. Roe"
+						bind:value={name}
+						onkeydown={(e) => e.key === 'Enter' && finish()}
+					/>
+				</label>
+			{/if}
 			<div class="actions">
 				{#if index > 0}
 					<button class="back" onclick={() => index--}><ArrowLeft size={16} /> Back</button>
 				{/if}
-				<button class="next" onclick={next}>
+				<button class="next" disabled={blocked} onclick={next}>
 					{last ? 'Get started' : 'Next'}
 					<ArrowRight size={16} />
 				</button>
@@ -137,6 +157,19 @@
 	.actions {
 		display: flex;
 		gap: 10px;
+	}
+	.name {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		max-width: 360px;
+		margin: -8px 0 24px;
+		font-size: 14px;
+		font-weight: 600;
+	}
+	.name input {
+		font-size: 16px;
+		padding: 10px 12px;
 	}
 	.actions button {
 		display: inline-flex;

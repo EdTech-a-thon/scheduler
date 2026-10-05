@@ -11,6 +11,10 @@
 		title?: string;
 		subtitle?: string;
 		warning?: boolean;
+		/** Icon names shown before the title, e.g. a Session's Providers. */
+		icons?: string[];
+		/** Drawn faded, as context rather than the focus. */
+		muted?: boolean;
 	}
 
 	export interface BackgroundSegment {
@@ -49,6 +53,7 @@
 		TriangleAlert
 	} from '@lucide/svelte';
 	import { applySpanAction, mergeAdditions, mergeCheck } from '$lib/domain/spans';
+	import PropertyIcon from './PropertyIcon.svelte';
 	import {
 		HANDLE_CURSOR,
 		applyDrag,
@@ -687,6 +692,7 @@
 					class:removed={item.look === 'removed'}
 					class:added={item.look === 'added'}
 					class:warning={item.warning}
+					class:muted={item.muted}
 					data-item={item.id}
 					style:--c={item.color}
 					style:left="{pct(item.start)}%"
@@ -701,6 +707,7 @@
 					<div class="content">
 						<div class="label">
 							{#if item.warning}<TriangleAlert size={12} />{/if}
+							{#each item.icons ?? [] as icon, i (i)}<PropertyIcon name={icon} size={12} />{/each}
 							{#if item.title}<strong>{item.title}</strong>{/if}
 							<span>{formatRange(item.start, item.end)}</span>
 						</div>
@@ -960,6 +967,9 @@
 		outline: 2px dashed #e5484d;
 		outline-offset: 1px;
 	}
+	.item.muted:not(.selected) {
+		opacity: 0.5;
+	}
 	.label {
 		display: flex;
 		gap: 4px;
@@ -968,6 +978,10 @@
 	}
 	.label span {
 		opacity: 0.75;
+	}
+	/* Icons keep their size however narrow the block. */
+	.label :global(svg) {
+		flex: none;
 	}
 	.sub {
 		white-space: nowrap;

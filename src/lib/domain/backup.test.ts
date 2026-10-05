@@ -15,10 +15,13 @@ const data: AppData = {
 			start: 540,
 			end: 570,
 			studentIds: ['s1'],
+			providerIds: [],
 			title: '',
 			notes: 'Articulation'
 		}
-	]
+	],
+	providers: [{ id: 'p', name: 'Elliot', color: '#e5484d', icon: 'user' }],
+	meId: 'p'
 };
 
 describe('backup', () => {
@@ -26,6 +29,17 @@ describe('backup', () => {
 		const file = JSON.parse(JSON.stringify(buildBackup(data)));
 		expect(isBackup(file)).toBe(true);
 		expect(parseBackup(file)).toEqual(data);
+	});
+
+	it('gives an older backup no Providers and nobody named', () => {
+		const old = JSON.parse(JSON.stringify(buildBackup(data)));
+		delete old.data.providers;
+		delete old.data.meId;
+		for (const s of old.data.sessions) delete s.providerIds;
+		const parsed = parseBackup(old);
+		expect(parsed.providers).toEqual([]);
+		expect(parsed.meId).toBeNull();
+		expect(parsed.sessions[0].providerIds).toEqual([]);
 	});
 
 	it('rejects transfer files and incomplete backups', () => {
